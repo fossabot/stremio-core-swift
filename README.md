@@ -1,26 +1,24 @@
-# stremio-core-kotlin
+# stremio-core-apple
 
-[![](https://jitpack.io/v/Stremio/stremio-core-kotlin.svg)](https://jitpack.io/#Stremio/stremio-core-kotlin)
+## This is stremio-core wrapper for apple devices. I used kotlin wrapper to port it to Apple ecosystem. My rust knowledge is amateur level so I may used bad approaches. 
 
 # Setup
 
-## Gradle
+### Installing dependencies. You need to install rust on your macOS machine
 
-### Add the JitPack repository to your root build.gradle
-
-```gradle
-allprojects {
-    repositories {
-        ...
-        maven { url 'https://jitpack.io' }
-    }
-}
+```
+./installDependencies.command 
 ```
 
-### Add the stremio-core-kotlin dependency
+### Build Bridge. It will create interface between Swift -> C -> Rust. Use this command when you make changes to C exports or in proto files
 
-```gradle
-dependencies {
-    implementation 'com.github.Stremio:stremio-core-kotlin:1.2.2'
-}
 ```
+./installDependencies.command 
+```
+
+### Compile rust code to library file. 
+```
+./build.command 
+```
+
+Finally copy bridge folder to xcode and include wrapper.hpp in Objective-c bridging header. Finally copy library file to in target to xcode project.

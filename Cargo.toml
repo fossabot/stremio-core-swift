@@ -1,6 +1,6 @@
 [package]
-name = "stremio-core-android"
-version = "1.2.2"
+name = "stremio-core-apple"
+version = "1.0.0"
 authors = ["Smart Code OOD"]
 edition = "2021"
 resolver = "2"
@@ -8,7 +8,7 @@ resolver = "2"
 rust-version = "1.67.1"
 
 [lib]
-crate_type = ["staticlib", "dylib"]
+crate-type = ["staticlib"]
 path = "src/commonMain/rust/lib.rs"
 
 [profile.release]
@@ -16,45 +16,39 @@ lto = true
 opt-level = 3
 
 [dependencies]
-stremio-core = { git = "https://github.com/Stremio/stremio-core", branch = "development", features = [
+stremio-core = { git = "https://github.com/Stremio/stremio-core", rev = "f451b2cb3645c21463c84dd6446b266659c45ded", features = [
     "derive",
     "analytics",
     "env-future-send",
 ] }
 
-stremio-watched-bitfield = { git = "https://github.com/Stremio/stremio-core", branch = "development" }
+stremio-watched-bitfield = { git = "https://github.com/Stremio/stremio-core",  rev = "f451b2cb3645c21463c84dd6446b266659c45ded"}
 serde = "1.0.*"
 serde_json = "1.0.*"
 futures = "0.3.*"
 http = "0.2.*"
 url = { version = "2.4", features = ["serde"] }
-percent-encoding = "2.1"
 chrono = "0.4.*"
 semver = { version = "1", features = ["serde"] }
-base64 = "0.13.*"
 hex = "0.4.*"
-flate2 = "1.0.*"
-either = "1.6.*"
 lazy_static = "1.4.*"
-enclose = "1.1.*"
-itertools = "0.10.*"
-strum = { version = "0.22.*", features = ["derive"] }
 boolinator = "2.4.*"
 Inflector = "0.11.*"
 getrandom = "0.2.*"
 cfg-if = "0.1.*"
-auto_impl = "0.5.*"
 serde_path_to_error = "0.1.*"
-jni = "0.19.*"
 reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread"] }
-openssl = { version = "=0.10.40", features = ["vendored"] }
-bytes = "1.1.0"
 prost = "0.12"
 prost-types = "0.12"
 http-cache-reqwest = "0.4.5"
 reqwest-middleware = "0.1.6"
 once_cell = "1.12.0"
+
+security-framework = "2.7.0"
+tracing = "0.1"
+js-sys = "0.3.*"
+objc = "0.2.7"
 
 [build-dependencies]
 prost-build = "0.12"

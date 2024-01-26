@@ -5,6 +5,4 @@ mod env;
 mod model;
 #[allow(clippy::all)]
 mod protobuf;
-
-mod jni_ext;
-mod stremio_core_android;
+mod stremio_core_apple;

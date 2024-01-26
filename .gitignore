@@ -7,3 +7,6 @@
 !/**/rust/protobuf/README.md
 /.idea/
 /local.properties
+/bridge/stremio/
+/bridge/wrapper.hpp
+.DS_Store

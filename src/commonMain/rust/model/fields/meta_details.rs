@@ -9,7 +9,7 @@ use stremio_core::types::resource::{MetaItem, SeriesInfo, Video};
 use stremio_watched_bitfield::WatchedBitField;
 
 use crate::bridge::{FromProtobuf, ToProtobuf};
-use crate::env::AndroidEnv;
+use crate::env::AppleEnv;
 use crate::protobuf::stremio::core::{models, types};
 
 impl FromProtobuf<Selected> for models::meta_details::Selected {
@@ -78,7 +78,7 @@ impl
             series_info: self.series_info.to_protobuf(&()),
             upcoming: self
                 .released
-                .map(|released| released > AndroidEnv::now())
+                .map(|released| released > AppleEnv::now())
                 .unwrap_or_default(),
             watched: watched
                 .map(|watched| watched.get_video(&self.id))

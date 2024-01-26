@@ -22,12 +22,12 @@ use stremio_core::types::streams::StreamsBucket;
 use stremio_core::Model;
 
 use crate::bridge::ToProtobuf;
-use crate::env::AndroidEnv;
+use crate::env::AppleEnv;
 use crate::model::AddonsWithFilters;
 
 #[derive(Model, Clone)]
-#[model(AndroidEnv)]
-pub struct AndroidModel {
+#[model(AppleEnv)]
+pub struct AppleModel {
     pub ctx: Ctx,
     pub auth_link: Link<LinkAuthKey>,
     pub continue_watching_preview: ContinueWatchingPreview,
@@ -43,7 +43,7 @@ pub struct AndroidModel {
     pub player: Player,
 }
 
-impl AndroidModel {
+impl AppleModel {
     pub fn new(
         profile: Profile,
         library: LibraryBucket,
@@ -51,7 +51,7 @@ impl AndroidModel {
         notifications: NotificationsBucket,
         search_history: SearchHistoryBucket,
         dismissed_events: DismissedEventsBucket,
-    ) -> (AndroidModel, Effects) {
+    ) -> (AppleModel, Effects) {
         let (continue_watching_preview, continue_watching_preview_effects) =
             ContinueWatchingPreview::new(&library, &notifications);
 
@@ -70,8 +70,8 @@ impl AndroidModel {
         let (library_by_type, library_by_type_effects) = LibraryByType::<NotRemovedFilter>::new();
         let (addons, addons_effects) = AddonsWithFilters::new(&ctx.profile);
         let (streaming_server, streaming_server_effects) =
-            StreamingServer::new::<AndroidEnv>(&ctx.profile);
-        let model = AndroidModel {
+            StreamingServer::new::<AppleEnv>(&ctx.profile);
+        let model = AppleModel {
             ctx,
             auth_link: Default::default(),
             continue_watching_preview,
@@ -97,32 +97,32 @@ impl AndroidModel {
         )
     }
 
-    pub fn get_state_binary(&self, field: &AndroidModelField) -> Vec<u8> {
+    pub fn get_state_binary(&self, field: &AppleModelField) -> Vec<u8> {
         match field {
-            AndroidModelField::Ctx => self.ctx.to_protobuf(&()).encode_to_vec(),
-            AndroidModelField::AuthLink => self.auth_link.to_protobuf(&()).encode_to_vec(),
-            AndroidModelField::ContinueWatchingPreview => self
+            AppleModelField::Ctx => self.ctx.to_protobuf(&()).encode_to_vec(),
+            AppleModelField::AuthLink => self.auth_link.to_protobuf(&()).encode_to_vec(),
+            AppleModelField::ContinueWatchingPreview => self
                 .continue_watching_preview
                 .to_protobuf(&self.ctx)
                 .encode_to_vec(),
-            AndroidModelField::Library => self.library.to_protobuf(&self.ctx).encode_to_vec(),
-            AndroidModelField::LibraryByType => {
+            AppleModelField::Library => self.library.to_protobuf(&self.ctx).encode_to_vec(),
+            AppleModelField::LibraryByType => {
                 self.library_by_type.to_protobuf(&self.ctx).encode_to_vec()
             }
-            AndroidModelField::Board => self.board.to_protobuf(&self.ctx).encode_to_vec(),
-            AndroidModelField::Search => self.search.to_protobuf(&self.ctx).encode_to_vec(),
-            AndroidModelField::Discover => self.discover.to_protobuf(&self.ctx).encode_to_vec(),
-            AndroidModelField::MetaDetails => {
+            AppleModelField::Board => self.board.to_protobuf(&self.ctx).encode_to_vec(),
+            AppleModelField::Search => self.search.to_protobuf(&self.ctx).encode_to_vec(),
+            AppleModelField::Discover => self.discover.to_protobuf(&self.ctx).encode_to_vec(),
+            AppleModelField::MetaDetails => {
                 self.meta_details.to_protobuf(&self.ctx).encode_to_vec()
             }
-            AndroidModelField::Addons => self.addons.to_protobuf(&self.ctx).encode_to_vec(),
-            AndroidModelField::AddonDetails => {
+            AppleModelField::Addons => self.addons.to_protobuf(&self.ctx).encode_to_vec(),
+            AppleModelField::AddonDetails => {
                 self.addon_details.to_protobuf(&self.ctx).encode_to_vec()
             }
-            AndroidModelField::StreamingServer => {
+            AppleModelField::StreamingServer => {
                 self.streaming_server.to_protobuf(&()).encode_to_vec()
             }
-            AndroidModelField::Player => self.player.to_protobuf(&self.ctx).encode_to_vec(),
+            AppleModelField::Player => self.player.to_protobuf(&self.ctx).encode_to_vec(),
         }
     }
 }

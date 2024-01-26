@@ -8,8 +8,8 @@ use stremio_core::runtime::msg::{
 use stremio_core::runtime::RuntimeAction;
 
 use crate::bridge::FromProtobuf;
-use crate::env::AndroidEnv;
-use crate::model::AndroidModel;
+use crate::env::AppleEnv;
+use crate::model::AppleModel;
 use crate::protobuf::stremio::core::runtime;
 use crate::protobuf::stremio::core::runtime::{
     action_catalog_with_filters, action_catalogs_with_extra, action_ctx, action_library_by_type,
@@ -240,8 +240,8 @@ impl FromProtobuf<Action> for runtime::Action {
     }
 }
 
-impl FromProtobuf<RuntimeAction<AndroidEnv, AndroidModel>> for runtime::RuntimeAction {
-    fn from_protobuf(&self) -> RuntimeAction<AndroidEnv, AndroidModel> {
+impl FromProtobuf<RuntimeAction<AppleEnv, AppleModel>> for runtime::RuntimeAction {
+    fn from_protobuf(&self) -> RuntimeAction<AppleEnv, AppleModel> {
         RuntimeAction {
             field: self
                 .field

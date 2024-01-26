@@ -1,188 +1,73 @@
-use crate::env::KotlinClassName;
-use crate::jni_ext::JObjectExt;
-use futures::future;
-use jni::objects::{GlobalRef, JObject};
-use jni::{JNIEnv, JavaVM};
 use serde::{Deserialize, Serialize};
-use serde_json::Deserializer;
-use std::convert::{Into, TryInto};
-use std::sync::Arc;
+use std::ffi::{CStr, CString};
+use futures::future;
+
+use objc::runtime::{Object, Class};
+use objc::{msg_send, sel, sel_impl,class};
 use stremio_core::runtime::{EnvError, EnvFutureExt, TryEnvFuture};
 
 pub struct Storage {
-    storage: GlobalRef,
-    java_vm: Arc<JavaVM>,
 }
-
+//TODO: This implimentation probably have race condition. Proper implimentation needed
 impl Storage {
-    pub fn new(env: &JNIEnv, storage: JObject) -> jni::errors::Result<Self> {
-        Ok(Self {
-            storage: env.new_global_ref(storage)?,
-            java_vm: Arc::new(env.get_java_vm()?),
-        })
+    pub fn new() -> Result<Self, &'static str> {
+        Ok(Self {})
     }
+
     pub fn get<T: for<'de> Deserialize<'de> + Send + 'static>(
         &self,
         key: &str,
     ) -> TryEnvFuture<Option<T>> {
         let key = key.to_owned();
-        let java_vm = self.java_vm.clone();
-        let storage = self.storage.clone();
-        future::lazy(move |_| {
-            let env = java_vm
-                .attach_current_thread_permanently()
-                .map_err(|error| EnvError::Other(error.to_string()))?;
-            let key = env
-                .new_string(key)
-                .map_err(|error| EnvError::Other(error.to_string()))?;
-            let key = env.auto_local(key);
-            let storage_result = env
-                .call_method(
-                    storage.as_obj(),
-                    "get",
-                    format!(
-                        "(Ljava/lang/String;)L{};",
-                        KotlinClassName::Storage_Result.value()
-                    ),
-                    &[key.as_obj().into()],
-                )
-                .map_err(|error| EnvError::StorageReadError(error.to_string()))?
-                .l()
-                .map_err(|error| EnvError::StorageReadError(error.to_string()))?;
-            let storage_result = env.auto_local(storage_result);
-            let storage_result_class_name = storage_result
-                .as_obj()
-                .get_class_name(&env)
-                .map_err(|error| EnvError::StorageReadError(error.to_string()))?;
-            match storage_result_class_name.replace('.', "/").try_into() {
-                Ok(KotlinClassName::Storage_Result_Ok) => {
-                    let value = env
-                        .call_method(
-                            storage_result.as_obj(),
-                            "getValue",
-                            "()Ljava/lang/Object;",
-                            &[],
-                        )
-                        .map_err(|error| EnvError::StorageReadError(error.to_string()))?
-                        .l()
-                        .map_err(|error| EnvError::StorageReadError(error.to_string()))?;
-                    let value = env.auto_local(value);
-                    if !value.as_obj().is_null() {
-                        let value = env
-                            .get_string(value.as_obj().into())
-                            .map_err(|error| EnvError::StorageReadError(error.to_string()))?
-                            .to_string_lossy()
-                            .into_owned();
-                        let mut deserializer = Deserializer::from_str(&value);
-                        cfg_if::cfg_if! {
-                            if #[cfg(debug_assertions)] {
-                                let value = serde_path_to_error::deserialize::<_, T>(&mut deserializer).map_err(|error| EnvError::Serde(error.to_string()))?;
-                            } else {
-                                let value = T::deserialize(&mut deserializer).map_err(|error| EnvError::Serde(error.to_string()))?;
-                            }
-                        };
-                        Ok(Some(value))
-                    } else {
-                        Ok(None)
-                    }
+        Box::pin(future::lazy(move |_| {
+            unsafe {
+                let defaults_class = Class::get("NSUserDefaults").expect("Could not find NSUserDefaults class");
+                let storage: *mut Object = msg_send![defaults_class, standardUserDefaults];
+                
+                let key_cstring = CString::new(key).expect("Failed to create CString for key");
+                let key_obj: *mut Object = msg_send![class!(NSString), stringWithUTF8String: key_cstring.as_ptr()];
+                let retrieved_value: *mut Object = msg_send![storage, objectForKey: key_obj];
+                // Convert the retrieved value to a Rust type
+                if !retrieved_value.is_null() {
+                    // Deserialize the value if it's not null
+                    // (Note: Deserialize should be implemented for T)
+                    let value_str: *const i8 = msg_send![retrieved_value, UTF8String];
+                    let value: String = String::from_utf8_lossy(CStr::from_ptr(value_str).to_bytes()).into();
+                    let deserialized_value: T = serde_json::from_str(&value).map_err(EnvError::from)?; // Adjust error handling as needed
+                    Ok(Some(deserialized_value))
+                } else {
+                    Ok(None)
                 }
-                Ok(KotlinClassName::Storage_Result_Err) => {
-                    let message = env
-                        .call_method(
-                            storage_result.as_obj(),
-                            "getMessage",
-                            "()Ljava/lang/String;",
-                            &[],
-                        )
-                        .map_err(|error| EnvError::StorageReadError(error.to_string()))?
-                        .l()
-                        .map_err(|error| EnvError::StorageReadError(error.to_string()))?;
-                    let message = env.auto_local(message);
-                    let message = env
-                        .get_string(message.as_obj().into())
-                        .map_err(|error| EnvError::StorageReadError(error.to_string()))?
-                        .to_string_lossy()
-                        .into_owned();
-                    Err(EnvError::StorageReadError(message))
-                }
-                _ => Err(EnvError::StorageReadError(format!(
-                    "Invalid Storage$Result: {}",
-                    storage_result_class_name
-                ))),
             }
-        })
+        }))
         .boxed_env()
     }
     pub fn set<T: Serialize>(&self, key: &str, value: Option<&T>) -> TryEnvFuture<()> {
-        let key = key.to_owned();
-        let value = value.map(|value| serde_json::to_string(&value));
-        let value = match value.transpose() {
-            Ok(value) => value,
-            Err(error) => return future::err(EnvError::Serde(error.to_string())).boxed_env(),
-        };
-        let java_vm = self.java_vm.clone();
-        let storage = self.storage.clone();
-        future::lazy(move |_| {
-            let env = java_vm
-                .attach_current_thread_permanently()
-                .map_err(|error| EnvError::Other(error.to_string()))?;
-            let key = env
-                .new_string(key)
-                .map_err(|error| EnvError::Other(error.to_string()))?;
-            let key = env.auto_local(key);
-            let value = match value {
-                Some(value) => env
-                    .new_string(&value)
-                    .map_err(|error| EnvError::Other(error.to_string()))?
-                    .into(),
-                _ => JObject::null(),
-            };
-            let value = env.auto_local(value);
-            let storage_result = env
-                .call_method(
-                    storage.as_obj(),
-                    "set",
-                    format!(
-                        "(Ljava/lang/String;Ljava/lang/String;)L{};",
-                        KotlinClassName::Storage_Result.value()
-                    ),
-                    &[key.as_obj().into(), value.as_obj().into()],
-                )
-                .map_err(|error| EnvError::StorageReadError(error.to_string()))?
-                .l()
-                .map_err(|error| EnvError::StorageReadError(error.to_string()))?;
-            let storage_result = env.auto_local(storage_result);
-            let storage_result_class_name = storage_result
-                .as_obj()
-                .get_class_name(&env)
-                .map_err(|error| EnvError::StorageReadError(error.to_string()))?;
-            match storage_result_class_name.replace('.', "/").try_into() {
-                Ok(KotlinClassName::Storage_Result_Ok) => Ok(()),
-                Ok(KotlinClassName::Storage_Result_Err) => {
-                    let message = env
-                        .call_method(
-                            storage_result.as_obj(),
-                            "getMessage",
-                            "()Ljava/lang/String;",
-                            &[],
-                        )
-                        .map_err(|error| EnvError::StorageReadError(error.to_string()))?
-                        .l()
-                        .map_err(|error| EnvError::StorageReadError(error.to_string()))?;
-                    let message = env.auto_local(message);
-                    let message = env
-                        .get_string(message.as_obj().into())
-                        .map_err(|error| EnvError::StorageReadError(error.to_string()))?
-                        .to_string_lossy()
-                        .into_owned();
-                    Err(EnvError::StorageReadError(message))
-                }
-                _ => Err(EnvError::StorageReadError(format!(
-                    "Invalid Storage$Result: {}",
-                    storage_result_class_name
-                ))),
+        if let Some(value) = value {
+            unsafe {    
+                let defaults_class = Class::get("NSUserDefaults").expect("Could not find NSUserDefaults class");
+                let storage: *mut Object = msg_send![defaults_class, standardUserDefaults];
+    
+                // Convert the value to a JSON string
+                let value_str = match serde_json::to_string(value) {
+                    Ok(value) => value,
+                    Err(error) => return future::err(EnvError::Serde(error.to_string())).boxed_env(),
+                };                
+                let key_cstring = CString::new(key).expect("Failed to create CString for key");
+                let value_cstring = CString::new(value_str).expect("Failed to create CString for value");
+    
+                // Set the value in UserDefaults
+                let key_obj: *mut Object = msg_send![class!(NSString), stringWithUTF8String: key_cstring.as_ptr()];
+                let value_obj: *mut Object = msg_send![class!(NSString), stringWithUTF8String: value_cstring.as_ptr()];
+                // Explicitly specify the types for msg_send!
+                let _: *mut Object = msg_send![storage, setObject: value_obj forKey: key_obj];
             }
+        }
+        future::lazy(move |_| {
+            Ok(()) // Return the serialized value
         })
         .boxed_env()
     }
 }
+
+

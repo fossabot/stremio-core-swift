@@ -1,8 +1,8 @@
 mod action;
 pub use action::*;
 
-mod android_model_field;
-pub use android_model_field::*;
+mod apple_model_field;
+pub use apple_model_field::*;
 
 mod auth_request;
 pub use auth_request::*;
@@ -75,6 +75,3 @@ pub use to_protobuf::*;
 
 mod from_protobuf;
 pub use from_protobuf::*;
-
-mod to_jni_byte_array;
-pub use to_jni_byte_array::*;

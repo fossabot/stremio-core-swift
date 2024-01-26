@@ -3,8 +3,8 @@ use stremio_core::runtime::msg::Event;
 use stremio_core::runtime::RuntimeEvent;
 
 use crate::bridge::ToProtobuf;
-use crate::env::AndroidEnv;
-use crate::model::AndroidModel;
+use crate::env::AppleEnv;
+use crate::model::AppleModel;
 use crate::protobuf::stremio::core::runtime;
 
 impl ToProtobuf<runtime::Event, ()> for Event {
@@ -196,7 +196,7 @@ impl ToProtobuf<runtime::Event, ()> for Event {
     }
 }
 
-impl ToProtobuf<runtime::RuntimeEvent, ()> for RuntimeEvent<AndroidEnv, AndroidModel> {
+impl ToProtobuf<runtime::RuntimeEvent, ()> for RuntimeEvent<AppleEnv, AppleModel> {
     fn to_protobuf(&self, _args: &()) -> runtime::RuntimeEvent {
         let event = match self {
             RuntimeEvent::NewState(fields, ..) => {
