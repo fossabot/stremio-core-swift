@@ -19,15 +19,13 @@ use crate::{
 
 const INSTALLATION_ID_STORAGE_KEY: &str = "installation_id";
 #[cfg(debug_assertions)]
-const LOG_DEBUG_PRIORITY: i32 = 3;
-#[cfg(debug_assertions)]
 const LOG_TAG: &str = "AppleEnv";
 
 lazy_static! {
     static ref CONCURRENT_RUNTIME: RwLock<tokio::runtime::Runtime> = RwLock::new(
         tokio::runtime::Builder::new_multi_thread()
             .thread_name("CONCURRENT_RUNTIME_THREAD")
-            .worker_threads(30)
+            .worker_threads(5)
             .enable_all()
             .build()
             .expect("CONCURRENT_RUNTIME create failed")
@@ -67,7 +65,8 @@ pub enum AppleEnv {}
 
 impl AppleEnv {
     pub fn init() -> TryEnvFuture<()> {
-        *STORAGE.write().expect("STORAGE write failed") = Some(Storage::new().expect("Create Storage failed"));
+        *STORAGE.write().expect("STORAGE write failed") =
+            Some(Storage::new().expect("Create Storage failed"));
         AppleEnv::migrate_storage_schema()
             .and_then(|_| async {
                 let installation_id = get_installation_id().await?;
@@ -85,8 +84,8 @@ impl AppleEnv {
             .block_on(future)
     }
     //TODO: Analyits disabled and iOS implimentation needed. Also this is not offical project
-    pub fn emit_to_analytics(event: &AppleEvent, model: &AppleModel, path: &str) {
-        println!("Analytis triggered"); 
+    pub fn emit_to_analytics(_event: &AppleEvent, _model: &AppleModel, _path: &str) {
+        println!("Analytis triggered");
         // let (name, data) = match event {
         //     AppleEvent::CoreEvent(Event::PlayerPlaying { load_time, context }) => (
         //         "playerPlaying".to_owned(),
@@ -202,8 +201,8 @@ impl Env for AppleEnv {
 
         let tag_str = tag.to_str().expect("Failed to convert tag to &str");
         let message_str = message.to_str().expect("Failed to convert message to &str");
-    
-        //TODO: impliment native logging mechanism 
+
+        //TODO: impliment native logging mechanism
         println!("{}: {}", tag_str, message_str);
     }
 }

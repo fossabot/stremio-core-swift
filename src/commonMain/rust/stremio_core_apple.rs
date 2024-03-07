@@ -1,14 +1,12 @@
+use futures::{future, StreamExt};
+use std::ffi::CStr;
+use std::os::raw::c_char;
 #[cfg(debug_assertions)]
 use std::panic;
-use std::ptr::null;
 use std::sync::RwLock;
-use futures::{future, StreamExt};
-use std::os::raw::c_char;
-use std::ffi::{CStr, CString};
 
-
-use prost::Message;
 use lazy_static::lazy_static;
+use prost::Message;
 use stremio_core::constants::{
     DISMISSED_EVENTS_STORAGE_KEY, LIBRARY_RECENT_STORAGE_KEY, LIBRARY_STORAGE_KEY,
     NOTIFICATIONS_STORAGE_KEY, PROFILE_STORAGE_KEY, SEARCH_HISTORY_STORAGE_KEY,
@@ -88,11 +86,8 @@ pub unsafe extern "C" fn initializeNative() -> ByteArray {
                         library.merge_bucket(other_bucket);
                     };
                     let streams = streams.unwrap_or(StreamsBucket::new(profile.uid()));
-                    let notifications = notifications.unwrap_or(NotificationsBucket::new::<
-                        AppleEnv,
-                    >(
-                        profile.uid(), vec![]
-                    ));
+                    let notifications = notifications
+                        .unwrap_or(NotificationsBucket::new::<AppleEnv>(profile.uid(), vec![]));
                     let search_history =
                         search_history.unwrap_or(SearchHistoryBucket::new(profile.uid()));
                     let dismissed_events =
@@ -130,14 +125,16 @@ pub unsafe extern "C" fn initializeNative() -> ByteArray {
                         };
                         future::ready(())
                     }));
-                    *RUNTIME.write().expect("RUNTIME write failed") = Some(Loadable::Ready(runtime));
+                    *RUNTIME.write().expect("RUNTIME write failed") =
+                        Some(Loadable::Ready(runtime));
                     ByteArray {
                         data: std::ptr::null(),
                         length: 0,
                     }
                 }
                 Err(error) => {
-                    *RUNTIME.write().expect("RUNTIME write failed") = Some(Loadable::Err(error.to_owned()));
+                    *RUNTIME.write().expect("RUNTIME write failed") =
+                        Some(Loadable::Err(error.to_owned()));
                     let result_bytes = error.to_protobuf(&()).encode_to_vec();
                     let byte_array = ByteArray {
                         data: result_bytes.as_ptr(),
@@ -166,7 +163,8 @@ pub unsafe extern "C" fn initializeNative() -> ByteArray {
 #[no_mangle]
 pub unsafe extern "C" fn dispatchNative(action_protobuf: ByteArray) {
     // Convert the incoming action_protobuf bytes to a Vec<u8>
-    let action_bytes: &[u8] = std::slice::from_raw_parts(action_protobuf.data, action_protobuf.length);
+    let action_bytes: &[u8] =
+        std::slice::from_raw_parts(action_protobuf.data, action_protobuf.length);
     let runtime_action = match runtime::RuntimeAction::decode(action_bytes) {
         Ok(action) => action.from_protobuf(),
         Err(err) => {
@@ -174,7 +172,6 @@ pub unsafe extern "C" fn dispatchNative(action_protobuf: ByteArray) {
             return;
         }
     };
-    println!("Action Bytes: {:?}", action_bytes);
     let runtime = RUNTIME.read().expect("RUNTIME read failed");
     let runtime = runtime
         .as_ref()
@@ -191,7 +188,10 @@ pub unsafe extern "C" fn dispatchNative(action_protobuf: ByteArray) {
 // }
 #[no_mangle]
 pub unsafe extern "C" fn getStateNative(field: i32) -> ByteArray {
-    let field =  Field::try_from(field).ok().from_protobuf().expect("AppleModelField convert failed");;
+    let field = Field::try_from(field)
+        .ok()
+        .from_protobuf()
+        .expect("AppleModelField convert failed");
     let runtime = RUNTIME.read().expect("RUNTIME read failed");
     let runtime = runtime
         .as_ref()
@@ -200,7 +200,10 @@ pub unsafe extern "C" fn getStateNative(field: i32) -> ByteArray {
         .expect("RUNTIME not initialized");
     let model = runtime.model().expect("model read failed");
     let data = model.get_state_binary(&field);
-    let byte_array = ByteArray {data: data.as_ptr(), length: data.len()};
+    let byte_array = ByteArray {
+        data: data.as_ptr(),
+        length: data.len(),
+    };
     //Leaking data
     std::mem::forget(data);
     byte_array
@@ -212,16 +215,24 @@ pub unsafe extern "C" fn getStateNative(field: i32) -> ByteArray {
 // }
 //Returns 0 address as Null
 #[no_mangle]
-pub unsafe extern "C" fn decodeStreamDataNative(field: *const c_char) ->  ByteArray {
+pub unsafe extern "C" fn decodeStreamDataNative(field: *const c_char) -> ByteArray {
     let stream = match Stream::decode(CStr::from_ptr(field).to_string_lossy().into_owned()) {
         Ok(stream) => stream,
-        Err(_) => return ByteArray {data: std::ptr::null(), length: 0},
+        Err(_) => {
+            return ByteArray {
+                data: std::ptr::null(),
+                length: 0,
+            }
+        }
     };
-  
+
     let data = stream
         .to_protobuf(&(None, None, None, None))
         .encode_to_vec();
-    let byte_array = ByteArray {data: data.as_ptr(), length: data.len()};
+    let byte_array = ByteArray {
+        data: data.as_ptr(),
+        length: data.len(),
+    };
     std::mem::forget(data);
     byte_array
 }
@@ -233,10 +244,12 @@ pub unsafe extern "C" fn sendNextAnalyticsBatch() {
 
 #[no_mangle]
 pub extern "C" fn freeByteArrayNative(byte_array: ByteArray) {
-    // Convert the raw pointer and length back into a Vec<u8>
-    let data = unsafe { Vec::from_raw_parts(byte_array.data as *mut u8, byte_array.length, byte_array.length) };
-
-    // Ensure that Vec<u8> is properly deallocated
+    let data = unsafe {
+        Vec::from_raw_parts(
+            byte_array.data as *mut u8,
+            byte_array.length,
+            byte_array.length,
+        )
+    };
     std::mem::drop(data);
 }
-
