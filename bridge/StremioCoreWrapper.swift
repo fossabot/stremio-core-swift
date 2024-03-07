@@ -8,7 +8,7 @@
 import Foundation
 import SwiftProtobuf
 
-class StremioCore {
+class StremioCoreWrapper {
     static func initialize() -> Stremio_Core_Runtime_EnvError? {
         initialize_rust()
         do {
@@ -35,6 +35,7 @@ class StremioCore {
     static func dispatch(action: Stremio_Core_Runtime_Action,field: Stremio_Core_Runtime_Field? = nil) {
         var runtimeAction = Stremio_Core_Runtime_RuntimeAction()
         runtimeAction.action = action
+
         if let field = field{
             runtimeAction.field = field
         }
@@ -42,11 +43,8 @@ class StremioCore {
             let actionProtobuf = try runtimeAction.serializedData()
             let action_protbuf : ByteArray = convertToByteArray(actionProtobuf)
             dispatchNative(action_protbuf)
+            action_protbuf.data.deallocate()
            
-            let byteStrings = actionProtobuf.map { String($0) }
-            let resultString = "[" + byteStrings.joined(separator: ", ") + "]"
-
-            print("Action Bytes: \(resultString)")
         } catch {
             print("Swift Error encoding RuntimeAction: \(error)")
         }
@@ -66,15 +64,14 @@ class StremioCore {
     
     ///Converts Swift Data to C byte array but needs to handle deallocation otherwise memory will leak.
     private static func convertToByteArray(_ data: Data) -> ByteArray {
-        var byteArray = ByteArray(data: nil, length: 0)
+        let length = data.count
+
+        let byteArray = UnsafeMutablePointer<UInt8>.allocate(capacity: length)
+        data.copyBytes(to: byteArray, count: length)
         
-        data.withUnsafeBytes { (pointer: UnsafeRawBufferPointer) in
-            if let baseAddress = pointer.baseAddress {
-                byteArray.data = baseAddress.assumingMemoryBound(to: UInt8.self)
-                byteArray.length = UInt(pointer.count)
-            }
-        }
-        return byteArray
+        let byteArrayStruct = ByteArray(data: byteArray, length: UInt(length))
+
+        return byteArrayStruct
     }
 
     ///Converts C byte array to Swift Data and it deallocates automaticly
@@ -85,6 +82,8 @@ class StremioCore {
         let bufferPointer = UnsafeBufferPointer(start: byteArray.data, count: Int(byteArray.length))
         let swiftData = Data(buffer: bufferPointer)
         freeByteArrayNative(byteArray)
+        
         return swiftData
     }
 }
+
