@@ -1,24 +1,25 @@
-# stremio-core-apple
+# Stremio-core-apple
 
-## This is stremio-core wrapper for apple devices. I used kotlin wrapper to port it to Apple ecosystem. My rust knowledge is amateur level so I may used bad approaches. 
+This is stremio-core wrapper for apple devices. I used kotlin wrapper to port it to Apple ecosystem. My rust knowledge is amateur level so I may used bad approaches.
 
-# Setup
+## Installing on a local machine
 
-### Installing dependencies. You need to install rust on your macOS machine
+Install rust on your macOS machine:
 
-```
-./installDependencies.command 
-```
-
-### Build Bridge. It will create interface between Swift -> C -> Rust. Use this command when you make changes to C exports or in proto files
-
-```
-./installDependencies.command 
+```zsh
+./installDependencies.command
 ```
 
-### Compile rust code to library file. 
-```
-./build.command 
+Build Bridge. It will create interface between Swift -> C -> Rust. Use this command when you make changes to C exports or in proto files:
+
+```zsh
+./buildBridge.command
 ```
 
-Finally copy bridge folder to xcode and include wrapper.hpp in Objective-c bridging header. Finally copy library file to in target to xcode project.
+Compile rust code to library file.
+
+```zsh
+./build.command
+```
+
+Finally copy bridge folder to xcode and include it in your Objective-c bridging header, then add compiled library file to your xcode project.
