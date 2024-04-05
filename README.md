@@ -1,4 +1,4 @@
-# Stremio-core-apple
+# Stremio-core-swift
 
 This is stremio-core wrapper for apple devices. I used kotlin wrapper to port it to Apple ecosystem. My rust knowledge is amateur level so I may used bad approaches.
 
