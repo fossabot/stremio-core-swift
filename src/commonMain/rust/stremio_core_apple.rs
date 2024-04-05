@@ -243,6 +243,16 @@ pub unsafe extern "C" fn sendNextAnalyticsBatch() {
 }
 
 #[no_mangle]
+pub extern "C" fn getVersionNative() -> ByteArray {
+    let data_array = env!("CARGO_PKG_VERSION").as_bytes();
+    let byte_array = ByteArray {
+        data: data_array.as_ptr(),
+        length: data_array.len(),
+    };
+    byte_array
+}
+
+#[no_mangle]
 pub extern "C" fn freeByteArrayNative(byte_array: ByteArray) {
     let data = unsafe {
         Vec::from_raw_parts(

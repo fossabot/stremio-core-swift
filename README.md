@@ -10,16 +10,10 @@ Install rust on your macOS machine:
 ./installDependencies.command
 ```
 
-Build Bridge. It will create interface between Swift -> C -> Rust. Use this command when you make changes to C exports or in proto files:
+Make package for xcode.
 
 ```zsh
-./buildBridge.command
+make all
 ```
 
-Compile rust code to library file.
-
-```zsh
-./build.command
-```
-
-Finally copy bridge folder to xcode and include it in your Objective-c bridging header, then add compiled library file to your xcode project.
+Package folder will be generated in build folder. It will contain protobuf files for swift and compiled binary for supported apple platforms

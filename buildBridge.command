@@ -4,7 +4,7 @@
 PROTO_DIR="src/main/proto"
 
 # Set the output directory for the generated Objective-C files
-OUTPUT_DIR="bridge"
+OUTPUT_DIR="build/StremioCore/Sources/StremioCore"
 
 # Find all .proto files in the input directory
 PROTO_FILES=$(find "$PROTO_DIR" -name "*.proto")
@@ -22,9 +22,10 @@ for PROTO_FILE in $PROTO_FILES; do
   protoc \
     --swift_out="$OUTPUT_DIR" \
     --proto_path="$PROTO_DIR" \
+    --swift_opt=Visibility=Public \
     "$PROTO_FILE"
 
   echo "Generated Swift files for $FILENAME_NOEXT"
 done
 
-cbindgen -o bridge/wrapper.hpp  
+cbindgen --lang c -o build/StremioCore/Sources/Wrapper/include/wrapper.h

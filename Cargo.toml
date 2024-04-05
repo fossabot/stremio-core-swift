@@ -1,11 +1,9 @@
 [package]
-name = "stremio-core-apple"
-version = "1.0.0"
+name = "stremio-core-swift"
+version = "1.2.2"
 authors = ["Smart Code OOD"]
 edition = "2021"
 resolver = "2"
-
-rust-version = "1.67.1"
 
 [lib]
 crate-type = ["staticlib"]
@@ -22,7 +20,7 @@ stremio-core = { git = "https://github.com/Stremio/stremio-core", rev = "f451b2c
     "env-future-send",
 ] }
 
-stremio-watched-bitfield = { git = "https://github.com/Stremio/stremio-core",  rev = "f451b2cb3645c21463c84dd6446b266659c45ded"}
+stremio-watched-bitfield = { git = "https://github.com/Stremio/stremio-core", rev = "f451b2cb3645c21463c84dd6446b266659c45ded" }
 serde = "1.0.*"
 serde_json = "1.0.*"
 futures = "0.3.*"
