@@ -5,6 +5,10 @@ use std::os::raw::c_char;
 use std::panic;
 use std::sync::RwLock;
 
+use objc::runtime::Object;
+use objc::{class, msg_send, sel, sel_impl};
+
+use enclose::enclose;
 use lazy_static::lazy_static;
 use prost::Message;
 use stremio_core::constants::{
@@ -105,24 +109,31 @@ pub unsafe extern "C" fn initializeNative() -> ByteArray {
                         effects.into_iter().collect::<Vec<_>>(),
                         1000,
                     );
+                    let stremio_core_class = class!(_TtC11StremioCore4Core);
                     AppleEnv::exec_concurrent(rx.for_each(move |event| {
                         if let RuntimeEvent::CoreEvent(event) = &event {
-                            let runtime = RUNTIME.read().expect("runtime read failed");
-                            let runtime = runtime
-                                .as_ref()
-                                .expect("runtime is not ready")
-                                .as_ref()
-                                .expect("runtime is not ready");
-                            let model = runtime.model().expect("model read failed");
-
-                            // iOS-specific logic for emitting to analytics
-                            // Replace "TODO" with actual iOS analytics logic
-                            AppleEnv::emit_to_analytics(
-                                &AppleEvent::CoreEvent(event.to_owned()),
-                                &model,
-                                "TODO",
-                            );
+                            AppleEnv::exec_concurrent(enclose!((event) async move {
+                                let runtime = RUNTIME.read().expect("runtime read failed");
+                                let runtime = runtime
+                                    .as_ref()
+                                    .expect("runtime is not ready")
+                                    .as_ref()
+                                    .expect("runtime is not ready");
+                                let model = runtime.model().expect("model read failed");
+                                AppleEnv::emit_to_analytics(
+                                    &AppleEvent::CoreEvent(event.to_owned()),
+                                    &model,
+                                    "TODO"
+                                );
+                            }));
                         };
+                        let event_bytes = event.to_protobuf(&()).encode_to_vec();
+                        let byte_array = ByteArray {
+                            data: event_bytes.as_ptr(),
+                            length: event_bytes.len(),
+                        };
+                        let _: *mut Object =
+                            msg_send![stremio_core_class, onRuntimeEvent: byte_array];
                         future::ready(())
                     }));
                     *RUNTIME.write().expect("RUNTIME write failed") =
