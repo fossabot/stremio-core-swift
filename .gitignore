@@ -1,6 +1,5 @@
 /build
 /target
-/.gradle
 /src/debug
 /src/release
 /**/rust/protobuf/*
@@ -11,3 +10,12 @@
 /bridge/wrapper.hpp
 .DS_Store
 /Cargo.lock
+/.build
+/Packages
+xcuserdata/
+DerivedData/
+.swiftpm
+.swiftpm/configuration/registries.json
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+.netrc
+/Package.resolved

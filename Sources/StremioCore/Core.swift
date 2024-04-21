@@ -10,6 +10,59 @@ import SwiftProtobuf
 import Wrapper
 
 public class Core {
+    //MARK: - callback
+    
+    private static var fieldListener : [Stremio_Core_Runtime_Field : (Any) -> Void] = [:]
+    private static var eventListener : [Int : (Any) -> Void] = [:]
+    
+    ///Make sure to remove listener before function gets deallocated to avoid undefined behaviour
+    public static func addEventListener(type: Stremio_Core_Runtime_Field, _ function: @escaping (Any) -> Void) {
+        Core.fieldListener[type] = function
+    }
+    
+    ///Make sure to remove listener before function gets deallocated to avoid undefined behaviour
+    public static func addEventListener(type: Int, _ function: @escaping (Any) -> Void) {
+        Core.eventListener[type] = function
+    }
+    
+    public static func removeEventListener(type: Stremio_Core_Runtime_Field) {
+        Core.fieldListener.removeValue(forKey: type)
+        print(fieldListener)
+    }
+    
+    public static func removeEventListener(type: Int) {
+        Core.eventListener.removeValue(forKey: type)
+    }
+    
+    @objc private static func onRuntimeEvent(_ eventProtobuf: ByteArray){
+        do {
+            let swiftData = convertToData(eventProtobuf, shouldFree: false)!;
+            let event = try Stremio_Core_Runtime_RuntimeEvent(serializedData: swiftData)
+            var function : ((Any) -> Void)?
+            var argument : Any?
+            if case .coreEvent(_:) = event.event{
+                function = Core.eventListener.first(where: {event.coreEvent.getMessageTag == $0.key})?.value
+                argument = event.coreEvent
+            }
+            else {
+                for field in event.newState.fields{
+                    print(event)
+                    function = Core.fieldListener[field]
+                    argument = field
+                }
+            }
+            if let function = function, let argument = argument{
+                DispatchQueue.main.sync {
+                    function(argument)
+                }
+            }
+        }
+        catch{
+            print("Swift Error onRuntimeEvent: \(error)")
+        }
+    }
+    
+    //MARK: - rust calls
     public static func initialize() -> Stremio_Core_Runtime_EnvError? {
         initialize_rust()
         do {
@@ -51,6 +104,13 @@ public class Core {
         }
     }
     
+    public static func getVersion() -> String? {
+        if let swiftData = convertToData(getVersionNative(), shouldFree: false){
+            return String(data: swiftData, encoding: .utf8)
+        }
+        return nil
+    }
+    
     public static func decodeStreamData(streamData: String) -> Stremio_Core_Types_Stream? {
         do {
             if let swiftData = convertToData(decodeStreamDataNative(streamData))
@@ -61,24 +121,6 @@ public class Core {
             print("Swift Error decoding Stream: \(error)")
         }
         return nil
-    }
-    
-    public static func getVersion() -> String? {
-        if let swiftData = convertToData(getVersionNative(), shouldFree: false){
-            return String(data: swiftData, encoding: .utf8)
-        }
-        return nil
-    }
-    
-    @objc private static func onRuntimeEvent(_ eventProtobuf: ByteArray){
-        do {
-            let swiftData = convertToData(eventProtobuf, shouldFree: false)!;
-            let event = try Stremio_Core_Runtime_Event(serializedData: swiftData)
-            print(event)
-        }
-        catch{
-            print("Swift Error onRuntimeEvent: \(error)")
-        }
     }
     
     ///Converts Swift Data to C byte array but needs to handle deallocation otherwise memory will leak.
@@ -105,3 +147,13 @@ public class Core {
         return swiftData
     }
 }
+//TODO: Find a way to get tag properly
+extension SwiftProtobuf.Message {
+    var getMessageTag: Int {
+        let def = try! SwiftProtobuf.Google_Protobuf_MessageOptions(serializedData: self.serializedData())
+        var messageText = def.textFormatString().components(separatedBy: "\n").first
+        messageText = messageText?.replacingOccurrences(of: " {", with: "")
+        return Int(messageText!) ?? 0
+    }
+}
+

@@ -4,7 +4,7 @@
 PROTO_DIR="src/main/proto"
 
 # Set the output directory for the generated Objective-C files
-OUTPUT_DIR="build/StremioCore/Sources/StremioCore"
+OUTPUT_DIR="Sources/StremioCore"
 
 # Find all .proto files in the input directory
 PROTO_FILES=$(find "$PROTO_DIR" -name "*.proto")
@@ -28,4 +28,4 @@ for PROTO_FILE in $PROTO_FILES; do
   echo "Generated Swift files for $FILENAME_NOEXT"
 done
 
-cbindgen --lang c -o build/StremioCore/Sources/Wrapper/include/wrapper.h
+cbindgen --lang c -o Sources/Wrapper/include/wrapper.h

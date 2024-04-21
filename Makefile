@@ -29,16 +29,14 @@ iossim:
 		target/x86_64-apple-ios/release/$(LIBRARY_NAME).a
 
 framework:
-	@mkdir -p build/
-	@$(RM) -rf build/$(FRAMEWORK_NAME).xcframework
+	@mkdir -p .build/
+	@$(RM) -rf .build/$(FRAMEWORK_NAME).xcframework
 	@xcodebuild -create-xcframework \
 		-library target/universal/$(LIBRARY_NAME)-ios.a \
 		-library target/universal/$(LIBRARY_NAME)-ios-sim.a \
 		-library target/universal/$(LIBRARY_NAME)-macabi.a \
-		-output build/$(FRAMEWORK_NAME).xcframework
+		-output .build/$(FRAMEWORK_NAME).xcframework
 
 package: framework
-	@$(RM) -rf build/StremioCore
-	@cp -rf bridge/StremioCore build/
+	@$(RM) -rf Sources/StremioCore/stremio
 	@./buildBridge.command
-	@mv build/$(FRAMEWORK_NAME).xcframework build/StremioCore/Frameworks/$(FRAMEWORK_NAME).xcframework

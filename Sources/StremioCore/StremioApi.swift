@@ -9,6 +9,14 @@ import Foundation
 import SwiftProtobuf
 
 public class StremioApi {
+    public class CallbackType {
+        public static var error : Int = {
+            var type = Stremio_Core_Runtime_Event()
+            type.error.error = ""
+            type.error.source = Stremio_Core_Runtime_Event()
+            return type.getMessageTag
+        }()
+    }
     
     public static func SetLoadRange(field: Stremio_Core_Runtime_Field?, start: UInt32, end: UInt32) {
         var action = Stremio_Core_Runtime_Action()
@@ -123,19 +131,11 @@ public class StremioApi {
         Core.dispatch(action: action, field: .metaDetails)
     }
     
-    public static func MetaItemGet(interval: TimeInterval) -> Stremio_Core_Models_MetaDetails?{
-        var result : Stremio_Core_Models_MetaDetails
-        repeat {
-            Thread.sleep(forTimeInterval: interval)
-            guard let myMessage: Stremio_Core_Models_MetaDetails = Core.getState(.metaDetails) else {return nil}
-                result = myMessage
-            if case .loading = result.metaItem.content {
-                continue
-            }
-            break
+    public static func MetaItemGet() -> Stremio_Core_Models_MetaDetails?{
+        if let myMessage: Stremio_Core_Models_MetaDetails = Core.getState(.metaDetails) {
+           return myMessage
         }
-        while (true)
-        return result
+        return nil
     }
     
     public static func Load() {
@@ -173,12 +173,12 @@ public class StremioApi {
         var action = Stremio_Core_Runtime_Action()
         action.load.player.stream = stream
         //If url contains info about meta then load it also
-        if urlPath.count >= 6{
+        if urlPath.indices.contains(5) {
             let addonURL = urlPath[2]
             let metaURL = urlPath[3]
             let contentType = urlPath[4]
             let contentID = urlPath[5]
-            let streamID = urlPath.count >= 7 ?  urlPath[6] : contentID
+            let streamID = urlPath.indices.contains(6) ?  urlPath[6] : contentID
             
             action.load.player.streamRequest.base = addonURL
             action.load.player.streamRequest.path.resource = "stream"
@@ -242,6 +242,27 @@ public class StremioApi {
     public static func InstallAddon(addonItem: Stremio_Core_Types_Descriptor) {
         var action = Stremio_Core_Runtime_Action()
         action.ctx.installAddon = addonItem
+        Core.dispatch(action: action)
+    }
+    
+    //MARK: - Adding, removing Library
+    
+    public static func AddToLibrary(metaPreview: Stremio_Core_Types_MetaItemPreview) {
+        var action = Stremio_Core_Runtime_Action()
+        action.ctx.addToLibrary = metaPreview
+        Core.dispatch(action: action)
+    }
+    
+    public static func RemoveFromLibrary(metaID: String) {
+        var action = Stremio_Core_Runtime_Action()
+        action.ctx.removeFromLibrary = metaID
+        Core.dispatch(action: action)
+    }
+    
+    public static func RewindLibraryItem(metaID: String?){
+        guard let metaID = metaID else { return }
+        var action = Stremio_Core_Runtime_Action()
+        action.ctx.rewindLibraryItem = metaID
         Core.dispatch(action: action)
     }
     
