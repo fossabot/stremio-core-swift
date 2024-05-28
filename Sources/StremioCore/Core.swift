@@ -11,33 +11,34 @@ import Wrapper
 
 public class Core {
     //MARK: - callback
-    
+
     private static var fieldListener : [Stremio_Core_Runtime_Field : (Any) -> Void] = [:]
     private static var eventListener : [Int : (Any) -> Void] = [:]
-    
+
     ///Make sure to remove listener before function gets deallocated to avoid undefined behaviour
     public static func addEventListener(type: Stremio_Core_Runtime_Field, _ function: @escaping (Any) -> Void) {
         Core.fieldListener[type] = function
     }
-    
+
     ///Make sure to remove listener before function gets deallocated to avoid undefined behaviour
     public static func addEventListener(type: Int, _ function: @escaping (Any) -> Void) {
         Core.eventListener[type] = function
     }
-    
+
     public static func removeEventListener(type: Stremio_Core_Runtime_Field) {
         Core.fieldListener.removeValue(forKey: type)
         print(fieldListener)
     }
-    
+
     public static func removeEventListener(type: Int) {
         Core.eventListener.removeValue(forKey: type)
     }
-    
-    @objc private static func onRuntimeEvent(_ eventProtobuf: ByteArray){
+    @objc internal static func onRuntimeEvent(_ eventData: NSData){
         do {
-            let swiftData = convertToData(eventProtobuf, shouldFree: false)!;
-            let event = try Stremio_Core_Runtime_RuntimeEvent(serializedData: swiftData)
+            let test = NSMutableURLRequest()
+            test.httpBody = eventData as Data;
+            
+            let event = try Stremio_Core_Runtime_RuntimeEvent(serializedData: eventData as Data)
             var function : ((Any) -> Void)?
             var argument : Any?
             if case .coreEvent(_:) = event.event{
@@ -61,7 +62,7 @@ public class Core {
             print("Swift Error onRuntimeEvent: \(error)")
         }
     }
-    
+
     //MARK: - rust calls
     public static func initialize() -> Stremio_Core_Runtime_EnvError? {
         initialize_rust()
@@ -74,7 +75,7 @@ public class Core {
         }
         return nil
     }
-    
+
     public static func getState<T: Message>(_ field: Stremio_Core_Runtime_Field) -> T? {
         do {
             if let swiftData = convertToData(getStateNative(Int32(field.rawValue))){
@@ -85,11 +86,11 @@ public class Core {
         }
         return nil
     }
-    
+
     public static func dispatch(action: Stremio_Core_Runtime_Action,field: Stremio_Core_Runtime_Field? = nil) {
         var runtimeAction = Stremio_Core_Runtime_RuntimeAction()
         runtimeAction.action = action
-        
+
         if let field = field{
             runtimeAction.field = field
         }
@@ -98,19 +99,19 @@ public class Core {
             let action_protbuf : ByteArray = convertToByteArray(actionProtobuf)
             dispatchNative(action_protbuf)
             action_protbuf.data.deallocate()
-            
+
         } catch {
             print("Swift Error encoding RuntimeAction: \(error)")
         }
     }
-    
+
     public static func getVersion() -> String? {
         if let swiftData = convertToData(getVersionNative(), shouldFree: false){
             return String(data: swiftData, encoding: .utf8)
         }
         return nil
     }
-    
+
     public static func decodeStreamData(streamData: String) -> Stremio_Core_Types_Stream? {
         do {
             if let swiftData = convertToData(decodeStreamDataNative(streamData))
@@ -122,19 +123,19 @@ public class Core {
         }
         return nil
     }
-    
+
     ///Converts Swift Data to C byte array but needs to handle deallocation otherwise memory will leak.
     private static func convertToByteArray(_ data: Data) -> ByteArray {
         let length = data.count
-        
+
         let byteArray = UnsafeMutablePointer<UInt8>.allocate(capacity: length)
         data.copyBytes(to: byteArray, count: length)
-        
+
         let byteArrayStruct = ByteArray(data: byteArray, length: UInt(length))
-        
+
         return byteArrayStruct
     }
-    
+
     ///Converts C byte array to Swift Data and it deallocates automaticly
     private static func convertToData(_ byteArray: ByteArray, shouldFree : Bool = true) -> Data? {
         if byteArray.data == nil || byteArray.length == 0{
@@ -143,7 +144,7 @@ public class Core {
         let bufferPointer = UnsafeBufferPointer(start: byteArray.data, count: Int(byteArray.length))
         let swiftData = Data(buffer: bufferPointer)
         if shouldFree{freeByteArrayNative(byteArray)}
-        
+
         return swiftData
     }
 }
@@ -156,4 +157,3 @@ extension SwiftProtobuf.Message {
         return Int(messageText!) ?? 0
     }
 }
-

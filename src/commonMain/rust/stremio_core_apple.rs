@@ -1,12 +1,13 @@
 use futures::{future, StreamExt};
 use std::ffi::CStr;
 use std::os::raw::c_char;
+
 #[cfg(debug_assertions)]
 use std::panic;
 use std::sync::RwLock;
 
-use objc::runtime::Object;
-use objc::{class, msg_send, sel, sel_impl};
+use objc2::{class, msg_send};
+use objc2_foundation::NSData;
 
 use enclose::enclose;
 use lazy_static::lazy_static;
@@ -54,10 +55,6 @@ pub extern "C" fn initialize_rust() {
     }));
 }
 
-// actual fun initialize(storage: Storage): EnvError? {
-//     return initializeNative(storage)
-//         ?.let { EnvError.decodeFromByteArray(it) }
-// }
 #[no_mangle]
 pub unsafe extern "C" fn initializeNative() -> ByteArray {
     let init_result = AppleEnv::exec_sync(AppleEnv::init());
@@ -127,13 +124,11 @@ pub unsafe extern "C" fn initializeNative() -> ByteArray {
                                 );
                             }));
                         };
-                        let event_bytes = event.to_protobuf(&()).encode_to_vec();
-                        let byte_array = ByteArray {
-                            data: event_bytes.as_ptr(),
-                            length: event_bytes.len(),
+                        let eventbytes =
+                            &NSData::with_bytes(&event.to_protobuf(&()).encode_to_vec());
+                        let _: () = unsafe {
+                            msg_send![stremio_core_class, onRuntimeEvent: eventbytes.as_ref()]
                         };
-                        let _: *mut Object =
-                            msg_send![stremio_core_class, onRuntimeEvent: byte_array];
                         future::ready(())
                     }));
                     *RUNTIME.write().expect("RUNTIME write failed") =
@@ -169,8 +164,6 @@ pub unsafe extern "C" fn initializeNative() -> ByteArray {
     }
 }
 
-//fun dispatch(action: Action, field: Field?)
-//dispatchNative(actionProtobuf) actionProtobuf is byteArr
 #[no_mangle]
 pub unsafe extern "C" fn dispatchNative(action_protobuf: ByteArray) {
     // Convert the incoming action_protobuf bytes to a Vec<u8>
@@ -192,11 +185,6 @@ pub unsafe extern "C" fn dispatchNative(action_protobuf: ByteArray) {
     runtime.dispatch(runtime_action);
 }
 
-// actual inline fun <reified T : Message> getState(field: Field): T {
-//     val protobuf = getStateNative(field)
-//     val companion = T::class.companionObjectInstance as Message.Companion<T>
-//     return companion.decodeFromByteArray(protobuf)
-// }
 #[no_mangle]
 pub unsafe extern "C" fn getStateNative(field: i32) -> ByteArray {
     let field = Field::try_from(field)
@@ -220,10 +208,6 @@ pub unsafe extern "C" fn getStateNative(field: i32) -> ByteArray {
     byte_array
 }
 
-// actual fun decodeStreamData(streamData: String): Stream? {
-//     return decodeStreamDataNative(streamData)
-//         ?.let { Stream.decodeFromByteArray(it) }
-// }
 //Returns 0 address as Null
 #[no_mangle]
 pub unsafe extern "C" fn decodeStreamDataNative(field: *const c_char) -> ByteArray {
