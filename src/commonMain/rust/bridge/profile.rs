@@ -1,5 +1,4 @@
 use std::cmp;
-use std::convert::TryFrom;
 
 use stremio_core::types::api::{LinkAuthKey, LinkCodeResponse};
 use stremio_core::types::profile::{

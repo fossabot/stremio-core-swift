@@ -28,4 +28,4 @@ for PROTO_FILE in $PROTO_FILES; do
   echo "Generated Swift files for $FILENAME_NOEXT"
 done
 
-cbindgen --lang c -o Sources/Wrapper/include/wrapper.h
+cbindgen --config cbindgen.toml -o Sources/Wrapper/include/wrapper.h

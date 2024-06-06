@@ -3,7 +3,7 @@ use std::sync::RwLock;
 use chrono::{DateTime, Utc};
 use futures::{Future, TryFutureExt};
 use http::Request;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 use stremio_core::{
@@ -21,28 +21,30 @@ const INSTALLATION_ID_STORAGE_KEY: &str = "installation_id";
 #[cfg(debug_assertions)]
 const LOG_TAG: &str = "AppleEnv";
 
-lazy_static! {
-    static ref CONCURRENT_RUNTIME: RwLock<tokio::runtime::Runtime> = RwLock::new(
+static CONCURRENT_RUNTIME: Lazy<RwLock<tokio::runtime::Runtime>> = Lazy::new(|| {
+    RwLock::new(
         tokio::runtime::Builder::new_multi_thread()
             .thread_name("CONCURRENT_RUNTIME_THREAD")
             .worker_threads(5)
             .enable_all()
             .build()
-            .expect("CONCURRENT_RUNTIME create failed")
-    );
-    static ref SEQUENTIAL_RUNTIME: RwLock<tokio::runtime::Runtime> = RwLock::new(
+            .expect("CONCURRENT_RUNTIME create failed"),
+    )
+});
+static SEQUENTIAL_RUNTIME: Lazy<RwLock<tokio::runtime::Runtime>> = Lazy::new(|| {
+    RwLock::new(
         tokio::runtime::Builder::new_multi_thread()
             .worker_threads(1)
             .thread_name("SEQUENTIAL_RUNTIME_THREAD")
             .enable_all()
             .build()
-            .expect("SEQUENTIAL_RUNTIME create failed")
-    );
-    static ref STORAGE: RwLock<Option<Storage>> = Default::default();
-    static ref ANALYTICS: Analytics<AppleEnv> = Default::default();
-    static ref INSTALLATION_ID: RwLock<Option<String>> = Default::default();
-    static ref VISIT_ID: String = hex::encode(AppleEnv::random_buffer(10));
-}
+            .expect("SEQUENTIAL_RUNTIME create failed"),
+    )
+});
+static STORAGE: Lazy<RwLock<Option<Storage>>> = Lazy::new(|| Default::default());
+static ANALYTICS: Lazy<Analytics<AppleEnv>> = Lazy::new(|| Default::default());
+static INSTALLATION_ID: Lazy<RwLock<Option<String>>> = Lazy::new(|| Default::default());
+static VISIT_ID: Lazy<String> = Lazy::new(|| hex::encode(AppleEnv::random_buffer(10)));
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]

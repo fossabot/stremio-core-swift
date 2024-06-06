@@ -1,17 +1,16 @@
-use futures::{future, StreamExt};
-use std::ffi::CStr;
-use std::os::raw::c_char;
-
 #[cfg(debug_assertions)]
 use std::panic;
 use std::sync::RwLock;
 
+use futures::{future, StreamExt};
+use objc2::rc::Id;
 use objc2::{class, msg_send};
-use objc2_foundation::NSData;
+use objc2_foundation::{NSData, NSString};
 
 use enclose::enclose;
-use lazy_static::lazy_static;
+use once_cell::sync::{Lazy, OnceCell};
 use prost::Message;
+
 use stremio_core::constants::{
     DISMISSED_EVENTS_STORAGE_KEY, LIBRARY_RECENT_STORAGE_KEY, LIBRARY_STORAGE_KEY,
     NOTIFICATIONS_STORAGE_KEY, PROFILE_STORAGE_KEY, SEARCH_HISTORY_STORAGE_KEY,
@@ -33,16 +32,11 @@ use crate::model::AppleModel;
 use crate::protobuf::stremio::core::runtime;
 use crate::protobuf::stremio::core::runtime::Field;
 
-lazy_static! {
-    static ref RUNTIME: RwLock<Option<Loadable<Runtime<AppleEnv, AppleModel>, EnvError>>> =
-        Default::default();
-}
+static RUNTIME: Lazy<RwLock<Option<Loadable<Runtime<AppleEnv, AppleModel>, EnvError>>>> =
+    Lazy::new(|| Default::default());
 
-#[repr(C)]
-pub struct ByteArray {
-    data: *const u8,
-    length: usize,
-}
+/// The device name passed on [`initializeNative`] of `stremio-core-swift`.
+pub static DEVICE_NAME: OnceCell<String> = OnceCell::new();
 
 #[no_mangle]
 pub extern "C" fn initialize_rust() {
@@ -56,8 +50,13 @@ pub extern "C" fn initialize_rust() {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn initializeNative() -> ByteArray {
+pub unsafe extern "C" fn initializeNative(device_info: *mut NSString) -> *mut NSData {
     let init_result = AppleEnv::exec_sync(AppleEnv::init());
+
+    // Set the device name only once on initialization!
+    DEVICE_NAME
+        .set(unsafe { &*device_info }.to_string())
+        .expect("Device name should be set only once!");
 
     match init_result {
         Ok(_) => {
@@ -133,42 +132,28 @@ pub unsafe extern "C" fn initializeNative() -> ByteArray {
                     }));
                     *RUNTIME.write().expect("RUNTIME write failed") =
                         Some(Loadable::Ready(runtime));
-                    ByteArray {
-                        data: std::ptr::null(),
-                        length: 0,
-                    }
+                    Id::into_raw(NSData::new())
                 }
                 Err(error) => {
                     *RUNTIME.write().expect("RUNTIME write failed") =
                         Some(Loadable::Err(error.to_owned()));
                     let result_bytes = error.to_protobuf(&()).encode_to_vec();
-                    let byte_array = ByteArray {
-                        data: result_bytes.as_ptr(),
-                        length: result_bytes.len(),
-                    };
-                    std::mem::forget(result_bytes);
-                    byte_array
+                    Id::into_raw(NSData::from_vec(result_bytes))
                 }
             }
         }
         Err(error) => {
             *RUNTIME.write().expect("RUNTIME write failed") = Some(Loadable::Err(error.to_owned()));
             let result_bytes = error.to_protobuf(&()).encode_to_vec();
-            let byte_array = ByteArray {
-                data: result_bytes.as_ptr(),
-                length: result_bytes.len(),
-            };
-            std::mem::forget(result_bytes);
-            byte_array
+            Id::into_raw(NSData::from_vec(result_bytes))
         }
     }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn dispatchNative(action_protobuf: ByteArray) {
+pub unsafe extern "C" fn dispatchNative(action_protobuf: *mut NSData) {
     // Convert the incoming action_protobuf bytes to a Vec<u8>
-    let action_bytes: &[u8] =
-        std::slice::from_raw_parts(action_protobuf.data, action_protobuf.length);
+    let action_bytes = unsafe { &*action_protobuf }.bytes();
     let runtime_action = match runtime::RuntimeAction::decode(action_bytes) {
         Ok(action) => action.from_protobuf(),
         Err(err) => {
@@ -186,7 +171,7 @@ pub unsafe extern "C" fn dispatchNative(action_protobuf: ByteArray) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn getStateNative(field: i32) -> ByteArray {
+pub unsafe extern "C" fn getStateNative(field: i32) -> *mut NSData {
     let field = Field::try_from(field)
         .ok()
         .from_protobuf()
@@ -199,37 +184,23 @@ pub unsafe extern "C" fn getStateNative(field: i32) -> ByteArray {
         .expect("RUNTIME not initialized");
     let model = runtime.model().expect("model read failed");
     let data = model.get_state_binary(&field);
-    let byte_array = ByteArray {
-        data: data.as_ptr(),
-        length: data.len(),
-    };
-    //Leaking data
-    std::mem::forget(data);
-    byte_array
+    Id::into_raw(NSData::from_vec(data))
 }
 
 //Returns 0 address as Null
 #[no_mangle]
-pub unsafe extern "C" fn decodeStreamDataNative(field: *const c_char) -> ByteArray {
-    let stream = match Stream::decode(CStr::from_ptr(field).to_string_lossy().into_owned()) {
+pub unsafe extern "C" fn decodeStreamDataNative(field: *mut NSString) -> *mut NSData {
+    let field = unsafe { &*field };
+    let stream = match Stream::decode(field.to_string()) {
         Ok(stream) => stream,
-        Err(_) => {
-            return ByteArray {
-                data: std::ptr::null(),
-                length: 0,
-            }
-        }
+        Err(_) => return Id::into_raw(NSData::new()),
     };
 
-    let data = stream
-        .to_protobuf(&(None, None, None, None))
-        .encode_to_vec();
-    let byte_array = ByteArray {
-        data: data.as_ptr(),
-        length: data.len(),
-    };
-    std::mem::forget(data);
-    byte_array
+    Id::into_raw(NSData::from_vec(
+        stream
+            .to_protobuf(&(None, None, None, None))
+            .encode_to_vec(),
+    ))
 }
 
 #[no_mangle]
@@ -238,23 +209,7 @@ pub unsafe extern "C" fn sendNextAnalyticsBatch() {
 }
 
 #[no_mangle]
-pub extern "C" fn getVersionNative() -> ByteArray {
-    let data_array = env!("CARGO_PKG_VERSION").as_bytes();
-    let byte_array = ByteArray {
-        data: data_array.as_ptr(),
-        length: data_array.len(),
-    };
-    byte_array
-}
-
-#[no_mangle]
-pub extern "C" fn freeByteArrayNative(byte_array: ByteArray) {
-    let data = unsafe {
-        Vec::from_raw_parts(
-            byte_array.data as *mut u8,
-            byte_array.length,
-            byte_array.length,
-        )
-    };
-    std::mem::drop(data);
+pub extern "C" fn getVersionNative() -> *mut NSString {
+    let data_array = env!("CARGO_PKG_VERSION");
+    Id::into_raw(NSString::from_str(data_array))
 }

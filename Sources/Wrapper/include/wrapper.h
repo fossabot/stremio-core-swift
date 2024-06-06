@@ -2,24 +2,18 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-
-typedef struct ByteArray {
-  const uint8_t *data;
-  uintptr_t length;
-} ByteArray;
+#include <Foundation/Foundation.h>
 
 void initialize_rust(void);
 
-struct ByteArray initializeNative(void);
+NSData *initializeNative(NSString *device_info);
 
-void dispatchNative(struct ByteArray action_protobuf);
+void dispatchNative(NSData *action_protobuf);
 
-struct ByteArray getStateNative(int32_t field);
+NSData *getStateNative(int32_t field);
 
-struct ByteArray decodeStreamDataNative(const char *field);
+NSData *decodeStreamDataNative(NSString *field);
 
 void sendNextAnalyticsBatch(void);
 
-struct ByteArray getVersionNative(void);
-
-void freeByteArrayNative(struct ByteArray byte_array);
+NSString *getVersionNative(void);

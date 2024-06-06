@@ -8,6 +8,10 @@
 import Foundation
 import SwiftProtobuf
 import Wrapper
+#if targetEnvironment(macCatalyst)
+#else
+import UIKit
+#endif
 
 public class Core {
     //MARK: - callback
@@ -65,9 +69,10 @@ public class Core {
 
     //MARK: - rust calls
     public static func initialize() -> Stremio_Core_Runtime_EnvError? {
+        print(getDeviceInfo())
         initialize_rust()
         do {
-            if let swiftData = convertToData(initializeNative()){
+            if let swiftData = initializeNative(getDeviceInfo()), !swiftData.isEmpty{
                 return try Stremio_Core_Runtime_EnvError(serializedData: swiftData)
             }
         } catch {
@@ -78,7 +83,7 @@ public class Core {
 
     public static func getState<T: Message>(_ field: Stremio_Core_Runtime_Field) -> T? {
         do {
-            if let swiftData = convertToData(getStateNative(Int32(field.rawValue))){
+            if let swiftData = getStateNative(Int32(field.rawValue)), !swiftData.isEmpty{
                 return try T(serializedData: swiftData)
             }
         } catch {
@@ -96,26 +101,19 @@ public class Core {
         }
         do {
             let actionProtobuf = try runtimeAction.serializedData()
-            let action_protbuf : ByteArray = convertToByteArray(actionProtobuf)
-            dispatchNative(action_protbuf)
-            action_protbuf.data.deallocate()
-
+            dispatchNative(actionProtobuf)
         } catch {
             print("Swift Error encoding RuntimeAction: \(error)")
         }
     }
 
-    public static func getVersion() -> String? {
-        if let swiftData = convertToData(getVersionNative(), shouldFree: false){
-            return String(data: swiftData, encoding: .utf8)
-        }
-        return nil
+    public static func getVersion() -> String {
+        return getVersionNative()
     }
 
     public static func decodeStreamData(streamData: String) -> Stremio_Core_Types_Stream? {
         do {
-            if let swiftData = convertToData(decodeStreamDataNative(streamData))
-            {
+            if let swiftData = decodeStreamDataNative(streamData), !swiftData.isEmpty{
                 return try Stremio_Core_Types_Stream(serializedData: swiftData)
             }
         } catch {
@@ -123,31 +121,36 @@ public class Core {
         }
         return nil
     }
-
-    ///Converts Swift Data to C byte array but needs to handle deallocation otherwise memory will leak.
-    private static func convertToByteArray(_ data: Data) -> ByteArray {
-        let length = data.count
-
-        let byteArray = UnsafeMutablePointer<UInt8>.allocate(capacity: length)
-        data.copyBytes(to: byteArray, count: length)
-
-        let byteArrayStruct = ByteArray(data: byteArray, length: UInt(length))
-
-        return byteArrayStruct
-    }
-
-    ///Converts C byte array to Swift Data and it deallocates automaticly
-    private static func convertToData(_ byteArray: ByteArray, shouldFree : Bool = true) -> Data? {
-        if byteArray.data == nil || byteArray.length == 0{
-            return nil
-        }
-        let bufferPointer = UnsafeBufferPointer(start: byteArray.data, count: Int(byteArray.length))
-        let swiftData = Data(buffer: bufferPointer)
-        if shouldFree{freeByteArrayNative(byteArray)}
-
-        return swiftData
-    }
 }
+
+func getDeviceInfo() -> String {
+    #if targetEnvironment(macCatalyst)
+    let service = IOServiceGetMatchingService(kIOMasterPortDefault,
+                                              IOServiceMatching("IOPlatformExpertDevice"))
+    var modelIdentifier: String
+    if let modelData = IORegistryEntryCreateCFProperty(service, "model" as CFString, kCFAllocatorDefault, 0).takeRetainedValue() as? Data {
+        modelIdentifier = String(data: modelData, encoding: .utf8)?.trimmingCharacters(in: .controlCharacters) ?? "UNKNOWN"
+    }
+    else {modelIdentifier = "UNKNOWN"}
+    IOObjectRelease(service)
+    
+    let osType = "macOS"
+    let osVersion = ProcessInfo.processInfo.operatingSystemVersion.description
+    #else
+    var systemInfo = utsname()
+    uname(&systemInfo)
+    let machineMirror = Mirror(reflecting: systemInfo.machine)
+    let modelIdentifier = machineMirror.children.reduce("") { identifier, element in
+        guard let value = element.value as? Int8, value != 0 else { return identifier }
+        return identifier + String(UnicodeScalar(UInt8(value)))
+    }
+
+    let osType = UIDevice.current.systemName
+    let osVersion =  UIDevice.current.systemVersion
+    #endif
+    return "(\(modelIdentifier); \(osType) \(osVersion))"
+}
+
 //TODO: Find a way to get tag properly
 extension SwiftProtobuf.Message {
     var getMessageTag: Int {
@@ -157,3 +160,16 @@ extension SwiftProtobuf.Message {
         return Int(messageText!) ?? 0
     }
 }
+
+#if targetEnvironment(macCatalyst)
+extension OperatingSystemVersion {
+    var description: String {
+        var patchVersion = ""
+        if self.patchVersion != 0{
+            patchVersion = ".\(self.patchVersion)"
+        }
+        
+        return "\(self.majorVersion).\(self.minorVersion)\(patchVersion)"
+    }
+}
+#endif
