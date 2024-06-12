@@ -3,9 +3,16 @@ use std::panic;
 use std::sync::RwLock;
 
 use futures::{future, StreamExt};
-use objc2::rc::Id;
+
+/*
+TODO: For some reason obj-c objects that generated from rust are not deallocated by swift automaitcly,
+As a work around im deallocating NSData manually and casting from NSObject to prevent swift to convert it Data
+Do not use NSData argument for swift as swift enforces Swift's Data type which will cause problems at some point
+*/
+use objc2::ffi::{objc_object, objc_release, Nil};
+use objc2::rc::Retained;
 use objc2::{class, msg_send};
-use objc2_foundation::{NSData, NSString};
+use objc2_foundation::{NSData, NSObject, NSString};
 
 use enclose::enclose;
 use once_cell::sync::{Lazy, OnceCell};
@@ -50,7 +57,7 @@ pub extern "C" fn initialize_rust() {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn initializeNative(device_info: *mut NSString) -> *mut NSData {
+pub unsafe extern "C" fn initializeNative(device_info: *mut NSString) -> *mut NSObject {
     let init_result = AppleEnv::exec_sync(AppleEnv::init());
 
     // Set the device name only once on initialization!
@@ -132,28 +139,28 @@ pub unsafe extern "C" fn initializeNative(device_info: *mut NSString) -> *mut NS
                     }));
                     *RUNTIME.write().expect("RUNTIME write failed") =
                         Some(Loadable::Ready(runtime));
-                    Id::into_raw(NSData::new())
+                    Nil as *mut NSObject
                 }
                 Err(error) => {
                     *RUNTIME.write().expect("RUNTIME write failed") =
                         Some(Loadable::Err(error.to_owned()));
                     let result_bytes = error.to_protobuf(&()).encode_to_vec();
-                    Id::into_raw(NSData::from_vec(result_bytes))
+                    Retained::into_raw(NSData::with_bytes(result_bytes.as_ref())) as *mut NSObject
                 }
             }
         }
         Err(error) => {
             *RUNTIME.write().expect("RUNTIME write failed") = Some(Loadable::Err(error.to_owned()));
             let result_bytes = error.to_protobuf(&()).encode_to_vec();
-            Id::into_raw(NSData::from_vec(result_bytes))
+            Retained::into_raw(NSData::with_bytes(result_bytes.as_ref())) as *mut NSObject
         }
     }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn dispatchNative(action_protobuf: *mut NSData) {
+pub unsafe extern "C" fn dispatchNative(action_protobuf: *mut NSObject) {
     // Convert the incoming action_protobuf bytes to a Vec<u8>
-    let action_bytes = unsafe { &*action_protobuf }.bytes();
+    let action_bytes = unsafe { &*(action_protobuf as *mut NSData) }.bytes();
     let runtime_action = match runtime::RuntimeAction::decode(action_bytes) {
         Ok(action) => action.from_protobuf(),
         Err(err) => {
@@ -171,7 +178,7 @@ pub unsafe extern "C" fn dispatchNative(action_protobuf: *mut NSData) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn getStateNative(field: i32) -> *mut NSData {
+pub unsafe extern "C" fn getStateNative(field: i32) -> *mut NSObject {
     let field = Field::try_from(field)
         .ok()
         .from_protobuf()
@@ -183,24 +190,21 @@ pub unsafe extern "C" fn getStateNative(field: i32) -> *mut NSData {
         .as_ref()
         .expect("RUNTIME not initialized");
     let model = runtime.model().expect("model read failed");
-    let data = model.get_state_binary(&field);
-    Id::into_raw(NSData::from_vec(data))
+    let bytes: &[u8] = &model.get_state_binary(&field);
+    Retained::into_raw(NSData::with_bytes(bytes)) as *mut NSObject
 }
 
 //Returns 0 address as Null
 #[no_mangle]
-pub unsafe extern "C" fn decodeStreamDataNative(field: *mut NSString) -> *mut NSData {
-    let field = unsafe { &*field };
+pub unsafe extern "C" fn decodeStreamDataNative(field: *mut NSString) -> *mut NSObject {
+    let field = &*field;
     let stream = match Stream::decode(field.to_string()) {
-        Ok(stream) => stream,
-        Err(_) => return Id::into_raw(NSData::new()),
-    };
-
-    Id::into_raw(NSData::from_vec(
-        stream
+        Ok(stream) => stream
             .to_protobuf(&(None, None, None, None))
             .encode_to_vec(),
-    ))
+        Err(_) => return Nil as *mut NSObject,
+    };
+    Retained::into_raw(NSData::with_bytes(stream.as_ref())) as *mut NSObject
 }
 
 #[no_mangle]
@@ -210,6 +214,10 @@ pub unsafe extern "C" fn sendNextAnalyticsBatch() {
 
 #[no_mangle]
 pub extern "C" fn getVersionNative() -> *mut NSString {
-    let data_array = env!("CARGO_PKG_VERSION");
-    Id::into_raw(NSString::from_str(data_array))
+    Retained::into_raw(NSString::from_str(env!("CARGO_PKG_VERSION")))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn releaseObjectNative(object: *mut NSObject) {
+    objc_release(object as *mut objc_object);
 }

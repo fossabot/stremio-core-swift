@@ -39,9 +39,6 @@ public class Core {
     }
     @objc internal static func onRuntimeEvent(_ eventData: NSData){
         do {
-            let test = NSMutableURLRequest()
-            test.httpBody = eventData as Data;
-            
             let event = try Stremio_Core_Runtime_RuntimeEvent(serializedData: eventData as Data)
             var function : ((Any) -> Void)?
             var argument : Any?
@@ -72,8 +69,9 @@ public class Core {
         print(getDeviceInfo())
         initialize_rust()
         do {
-            if let swiftData = initializeNative(getDeviceInfo()), !swiftData.isEmpty{
-                return try Stremio_Core_Runtime_EnvError(serializedData: swiftData)
+            if let swiftData = initializeNative(getDeviceInfo()) as? NSData{
+                defer {defer {releaseObjectNative(swiftData)}}
+                return try Stremio_Core_Runtime_EnvError(serializedData: swiftData as Data)
             }
         } catch {
             print("Swift Error decoding EnvError: \(error)")
@@ -83,8 +81,9 @@ public class Core {
 
     public static func getState<T: Message>(_ field: Stremio_Core_Runtime_Field) -> T? {
         do {
-            if let swiftData = getStateNative(Int32(field.rawValue)), !swiftData.isEmpty{
-                return try T(serializedData: swiftData)
+            if let swiftData = getStateNative(Int32(field.rawValue)) as? NSData{
+                defer {defer {releaseObjectNative(swiftData)}}
+                return try T(serializedData: swiftData as Data)
             }
         } catch {
             print("Swift Error decoding state: \(error)")
@@ -100,30 +99,31 @@ public class Core {
             runtimeAction.field = field
         }
         do {
-            let actionProtobuf = try runtimeAction.serializedData()
+            let actionProtobuf = try NSData(data: runtimeAction.serializedData())
             dispatchNative(actionProtobuf)
         } catch {
             print("Swift Error encoding RuntimeAction: \(error)")
         }
     }
 
-    public static func getVersion() -> String {
-        return getVersionNative()
-    }
-
     public static func decodeStreamData(streamData: String) -> Stremio_Core_Types_Stream? {
         do {
-            if let swiftData = decodeStreamDataNative(streamData), !swiftData.isEmpty{
-                return try Stremio_Core_Types_Stream(serializedData: swiftData)
+            if let swiftData = decodeStreamDataNative(streamData) as? NSData{
+                defer {releaseObjectNative(swiftData)}
+                return try Stremio_Core_Types_Stream(serializedData: swiftData as Data)
             }
         } catch {
             print("Swift Error decoding Stream: \(error)")
         }
         return nil
     }
+    
+    public static func getVersion() -> String {
+        return getVersionNative()
+    }
 }
 
-func getDeviceInfo() -> String {
+fileprivate func getDeviceInfo() -> String {
     #if targetEnvironment(macCatalyst)
     let service = IOServiceGetMatchingService(kIOMasterPortDefault,
                                               IOServiceMatching("IOPlatformExpertDevice"))

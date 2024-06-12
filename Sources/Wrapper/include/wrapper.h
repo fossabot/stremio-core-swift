@@ -6,14 +6,16 @@
 
 void initialize_rust(void);
 
-NSData *initializeNative(NSString *device_info);
+NSObject *initializeNative(NSString *device_info);
 
-void dispatchNative(NSData *action_protobuf);
+void dispatchNative(NSObject *action_protobuf);
 
-NSData *getStateNative(int32_t field);
+NSObject *getStateNative(int32_t field);
 
-NSData *decodeStreamDataNative(NSString *field);
+NSObject *decodeStreamDataNative(NSString *field);
 
 void sendNextAnalyticsBatch(void);
 
 NSString *getVersionNative(void);
+
+void releaseObjectNative(NSObject *object);
