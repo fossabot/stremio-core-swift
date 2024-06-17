@@ -8,6 +8,8 @@
 import Foundation
 import SwiftProtobuf
 import Wrapper
+import os.log
+
 #if targetEnvironment(macCatalyst)
 #else
 import UIKit
@@ -15,6 +17,7 @@ import UIKit
 
 public class Core {
     //MARK: - callback
+    private static let oslog = OSLog(subsystem: "com.stremio.core.Swift", category: "Wrapper")
 
     private static var fieldListener : [Stremio_Core_Runtime_Field : (Any) -> Void] = [:]
     private static var eventListener : [Int : (Any) -> Void] = [:]
@@ -31,7 +34,6 @@ public class Core {
 
     public static func removeEventListener(type: Stremio_Core_Runtime_Field) {
         Core.fieldListener.removeValue(forKey: type)
-        print(fieldListener)
     }
 
     public static func removeEventListener(type: Int) {
@@ -42,31 +44,35 @@ public class Core {
             let event = try Stremio_Core_Runtime_RuntimeEvent(serializedData: eventData as Data)
             var function : ((Any) -> Void)?
             var argument : Any?
+            os_log(.debug, log: oslog, "%@", event.debugDescription)
             if case .coreEvent(_:) = event.event{
                 function = Core.eventListener.first(where: {event.coreEvent.getMessageTag == $0.key})?.value
                 argument = event.coreEvent
             }
             else {
                 for field in event.newState.fields{
-                    print(event)
                     function = Core.fieldListener[field]
                     argument = field
                 }
             }
             if let function = function, let argument = argument{
-                DispatchQueue.main.sync {
+                DispatchQueue.main.asyncAndWait {
                     function(argument)
                 }
             }
         }
         catch{
-            print("Swift Error onRuntimeEvent: \(error)")
+            os_log(.error, log: oslog, "Error onRuntimeEvent: %@", error.localizedDescription)
         }
+    }
+    
+    @objc internal static func onRustPanic(_ errorString: NSString){
+        let oslog = OSLog(subsystem: "com.stremio.core.Rust", category: "Fatal")
+        os_log(.fault, log: oslog, "Rust paniced: %{public}s", errorString)
     }
 
     //MARK: - rust calls
     public static func initialize() -> Stremio_Core_Runtime_EnvError? {
-        print(getDeviceInfo())
         initialize_rust()
         do {
             if let swiftData = initializeNative(getDeviceInfo()) as? NSData{
@@ -74,7 +80,7 @@ public class Core {
                 return try Stremio_Core_Runtime_EnvError(serializedData: swiftData as Data)
             }
         } catch {
-            print("Swift Error decoding EnvError: \(error)")
+            os_log(.error, log: oslog, "Error envError: %@", error.localizedDescription)
         }
         return nil
     }
@@ -86,7 +92,7 @@ public class Core {
                 return try T(serializedData: swiftData as Data)
             }
         } catch {
-            print("Swift Error decoding state: \(error)")
+            os_log(.error, log: oslog, "Error getState: %@", error.localizedDescription)
         }
         return nil
     }
@@ -102,7 +108,7 @@ public class Core {
             let actionProtobuf = try NSData(data: runtimeAction.serializedData())
             dispatchNative(actionProtobuf)
         } catch {
-            print("Swift Error encoding RuntimeAction: \(error)")
+            os_log(.error, log: oslog, "Error dispatch: %@", error.localizedDescription)
         }
     }
 
@@ -113,7 +119,7 @@ public class Core {
                 return try Stremio_Core_Types_Stream(serializedData: swiftData as Data)
             }
         } catch {
-            print("Swift Error decoding Stream: \(error)")
+            os_log(.error, log: oslog, "Error decodeStreamData: %@", error.localizedDescription)
         }
         return nil
     }

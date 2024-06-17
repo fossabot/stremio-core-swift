@@ -7,17 +7,11 @@
 
 import Foundation
 import SwiftProtobuf
+import os.log
 
 public class StremioApi {
-    public class CallbackType {
-        public static var error : Int = {
-            var type = Stremio_Core_Runtime_Event()
-            type.error.error = ""
-            type.error.source = Stremio_Core_Runtime_Event()
-            return type.getMessageTag
-        }()
-    }
-    
+    private static let oslog = OSLog(subsystem: "com.stremio.core.StremioApi", category: "Wrapper")
+
     public static func SetLoadRange(field: Stremio_Core_Runtime_Field?, start: UInt32, end: UInt32) {
         var action = Stremio_Core_Runtime_Action()
         if field == .board || field == .discover{
@@ -138,24 +132,38 @@ public class StremioApi {
         return nil
     }
     
-    public static func Load() {
+    public static func SyncAll() {
+        SyncAddons()
+        SyncLibray()
+        PullUser()
+    }
+    
+    public static func SyncAddons() {
         var action = Stremio_Core_Runtime_Action()
         action.ctx.pullAddonsFromApi = SwiftProtobuf.Google_Protobuf_Empty()
         Core.dispatch(action: action, field: .ctx)
+    }
 
-        action = Stremio_Core_Runtime_Action()
-        action.ctx.pullUserFromApi = SwiftProtobuf.Google_Protobuf_Empty()
-        Core.dispatch(action: action, field: .ctx)
-        
-        action = Stremio_Core_Runtime_Action()
+    public static func SyncLibray() {
+        var action = Stremio_Core_Runtime_Action()
         action.ctx.syncLibraryWithApi = SwiftProtobuf.Google_Protobuf_Empty()
         Core.dispatch(action: action, field: .ctx)
-        
-        action = Stremio_Core_Runtime_Action()
+    }
+    
+    public static func PullUser() {
+        var action = Stremio_Core_Runtime_Action()
+        action.ctx.pullUserFromApi = SwiftProtobuf.Google_Protobuf_Empty()
+        Core.dispatch(action: action, field: .ctx)
+    }
+    
+    public static func PullNotifications() {
+        var action = Stremio_Core_Runtime_Action()
         action.ctx.pullNotifications = SwiftProtobuf.Google_Protobuf_Empty()
         Core.dispatch(action: action, field: .ctx)
-        
-        action = Stremio_Core_Runtime_Action()
+    }
+
+    public static func PullEvents() {
+        var action = Stremio_Core_Runtime_Action()
         action.ctx.getEvents = SwiftProtobuf.Google_Protobuf_Empty()
         Core.dispatch(action: action, field: .ctx)
     }
@@ -233,18 +241,69 @@ public class StremioApi {
         Core.dispatch(action: action, field: .addonDetails)
     }
     
-    public static func UninstallAddon(addonItem: Stremio_Core_Types_Descriptor) {
+    public static func UninstallAddon(addonItem: Stremio_Core_Types_Descriptor, 
+                                      completionHandler: ((Stremio_Core_Runtime_Event.AddonUninstalled) -> Void )? = nil) {
         var action = Stremio_Core_Runtime_Action()
         action.ctx.uninstallAddon = addonItem
         Core.dispatch(action: action)
+        if let completionHandler = completionHandler{
+            Core.addEventListener(type: StremioApi.CallbackType.addonUninstalled){ result in
+                if let result = result as? Stremio_Core_Runtime_Event.AddonUninstalled{
+                    completionHandler(result)
+                }
+                else {os_log(.fault, log: oslog, "Casting failed for addonUninstalled: %@", String(describing: result))}
+                Core.removeEventListener(type: StremioApi.CallbackType.addonUninstalled)
+            }
+        }
     }
     
-    public static func InstallAddon(addonItem: Stremio_Core_Types_Descriptor) {
+    public static func InstallAddon(descriptor: Stremio_Core_Types_Descriptor,
+                                    completionHandler: ((Stremio_Core_Runtime_Event.AddonInstalled) -> Void)? = nil) {
         var action = Stremio_Core_Runtime_Action()
-        action.ctx.installAddon = addonItem
+        action.ctx.installAddon = descriptor
         Core.dispatch(action: action)
+        
+        if let completionHandler = completionHandler {
+            Core.addEventListener(type: StremioApi.CallbackType.addonInstalled) { result in
+                if let result = result as? Stremio_Core_Runtime_Event.AddonInstalled {
+                    completionHandler(result)
+                } else {os_log(.fault, log: oslog, "Casting failed for addonInstalled: %@", String(describing: result))}
+                Core.removeEventListener(type: StremioApi.CallbackType.addonInstalled)
+            }
+        }
     }
     
+    public static func UpgradeAddon(descriptor: Stremio_Core_Types_Descriptor,
+                                    completionHandler: ((Stremio_Core_Runtime_Event.AddonUpgraded) -> Void)? = nil) {
+        var action = Stremio_Core_Runtime_Action()
+        action.ctx.upgradeAddon = descriptor
+        Core.dispatch(action: action)
+        
+        if let completionHandler = completionHandler {
+            Core.addEventListener(type: StremioApi.CallbackType.addonUpgraded) { result in
+                if let result = result as? Stremio_Core_Runtime_Event.AddonUpgraded {
+                    completionHandler(result)
+                } else {os_log(.fault, log: oslog, "Casting failed for addonUpgraded: %@", String(describing: result))}
+                Core.removeEventListener(type: StremioApi.CallbackType.addonUpgraded)
+            }
+        }
+    }
+
+    public static func UpdateSettings(settings: Stremio_Core_Types_Profile.Settings,
+                                    completionHandler: ((Stremio_Core_Runtime_Event.SettingsUpdated) -> Void)? = nil) {
+        var action = Stremio_Core_Runtime_Action()
+        action.ctx.updateSettings = settings
+        Core.dispatch(action: action)
+        if let completionHandler = completionHandler {
+            Core.addEventListener(type: StremioApi.CallbackType.addonInstalled) { result in
+                if let result = result as? Stremio_Core_Runtime_Event.SettingsUpdated {
+                    completionHandler(result)
+                } else {os_log(.fault, log: oslog, "Casting failed for settingsUpdated: %@", String(describing: result))}
+                Core.removeEventListener(type: StremioApi.CallbackType.addonUpgraded)
+            }
+        }
+    }
+
     //MARK: - Adding, removing Library
     
     public static func AddToLibrary(metaPreview: Stremio_Core_Types_MetaItemPreview) {
@@ -264,6 +323,15 @@ public class StremioApi {
         var action = Stremio_Core_Runtime_Action()
         action.ctx.rewindLibraryItem = metaID
         Core.dispatch(action: action)
+    }
+    
+    public static func MarkAsWatched(video: Stremio_Core_Types_Video, watched: Bool){
+        var state = Stremio_Core_Runtime_ActionMetaDetails.VideoState()
+        state.video = video
+        state.isWatched = watched
+        var action = Stremio_Core_Runtime_Action()
+        action.metaDetails.markVideoAsWatched = state
+        Core.dispatch(action: action, field: .metaDetails)
     }
     
     //MARK: - For account related functions

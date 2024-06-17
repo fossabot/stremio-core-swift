@@ -1,4 +1,3 @@
-#[cfg(debug_assertions)]
 use std::panic;
 use std::sync::RwLock;
 
@@ -47,12 +46,10 @@ pub static DEVICE_NAME: OnceCell<String> = OnceCell::new();
 
 #[no_mangle]
 pub extern "C" fn initialize_rust() {
-    // Initialization code for Apple devices
-    #[cfg(debug_assertions)]
     panic::set_hook(Box::new(|info| {
-        // iOS-specific logging or error handling
-        // You may want to use NSLog or other iOS-specific logging mechanisms
-        println!("Error: {}", info);
+        let stremio_core_class = class!(_TtC11StremioCore4Core);
+        let string = NSString::from_str(info.to_string().as_str());
+        let _: () = unsafe { msg_send![stremio_core_class, onRustPanic: string.as_ref()] };
     }));
 }
 
