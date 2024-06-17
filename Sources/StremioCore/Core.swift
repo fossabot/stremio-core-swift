@@ -46,18 +46,19 @@ public class Core {
             var argument : Any?
             os_log(.debug, log: oslog, "%@", event.debugDescription)
             if case .coreEvent(_:) = event.event{
-                function = Core.eventListener.first(where: {event.coreEvent.getMessageTag == $0.key})?.value
-                argument = event.coreEvent
+                if let function = Core.eventListener.first(where: {event.coreEvent.getMessageTag == $0.key})?.value {
+                    DispatchQueue.main.asyncAndWait {
+                        function(event.coreEvent)
+                    }
+                }
             }
             else {
                 for field in event.newState.fields{
-                    function = Core.fieldListener[field]
-                    argument = field
-                }
-            }
-            if let function = function, let argument = argument{
-                DispatchQueue.main.asyncAndWait {
-                    function(argument)
+                    if let function = Core.fieldListener[field] {
+                        DispatchQueue.main.asyncAndWait {
+                            function(field)
+                        }
+                    }
                 }
             }
         }
