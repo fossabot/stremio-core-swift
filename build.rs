@@ -1,5 +1,6 @@
 use glob::glob;
 use prost_build::Config;
+use std::fs;
 
 fn main() {
     let proto_dir = "src/main/proto";
@@ -13,9 +14,14 @@ fn main() {
     }
     let file_descriptors =
         protox::compile(proto_paths, [proto_dir]).expect("Expected file descriptors");
+
+    let out_dir = "src/commonMain/rust/protobuf";
+
+    fs::create_dir_all(out_dir).expect("Failed to create output directory");
+
     Config::new()
         .compile_well_known_types()
-        .out_dir("src/commonMain/rust/protobuf")
+        .out_dir(out_dir)
         .include_file("mod.rs")
         .compile_fds(file_descriptors)
         .expect("Expected successful protobuf codegen");
