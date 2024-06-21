@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use stremio_core::deep_links::MetaItemDeepLinks;
 use stremio_core::models::common::{Loadable, ResourceError};
 use stremio_core::models::ctx::{Ctx, CtxError};
@@ -27,7 +28,12 @@ impl ToProtobuf<models::loadable_page::Content, (&Ctx, &ResourceRequest)>
     ) -> models::loadable_page::Content {
         match &self {
             Loadable::Ready(ready) => models::loadable_page::Content::Ready(models::Page {
-                meta_items: ready.to_protobuf(&(*ctx, *request)),
+                meta_items: ready
+                    .iter()
+                    .unique_by(|meta_item| &meta_item.id)
+                    .map(|meta_item| meta_item.to_owned())
+                    .collect_vec()
+                    .to_protobuf(&(*ctx, *request)),
             }),
             Loadable::Err(error) => models::loadable_page::Content::Error(models::Error {
                 message: error.to_string(),
