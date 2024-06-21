@@ -9,3 +9,4 @@ rustup target add x86_64-apple-ios
 rustup component add rust-src --toolchain nightly-x86_64-apple-darwin
 brew install protobuf
 brew install swift-protobuf
+brew install cbindgen
