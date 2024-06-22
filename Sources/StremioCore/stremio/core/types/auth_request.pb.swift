@@ -43,6 +43,14 @@ public struct Stremio_Core_Types_AuthRequest {
     set {type = .loginWithToken(newValue)}
   }
 
+  public var facebook: Stremio_Core_Types_AuthRequest.Facebook {
+    get {
+      if case .facebook(let v)? = type {return v}
+      return Stremio_Core_Types_AuthRequest.Facebook()
+    }
+    set {type = .facebook(newValue)}
+  }
+
   public var register: Stremio_Core_Types_AuthRequest.Register {
     get {
       if case .register(let v)? = type {return v}
@@ -56,6 +64,7 @@ public struct Stremio_Core_Types_AuthRequest {
   public enum OneOf_Type: Equatable {
     case login(Stremio_Core_Types_AuthRequest.Login)
     case loginWithToken(Stremio_Core_Types_AuthRequest.LoginWithToken)
+    case facebook(Stremio_Core_Types_AuthRequest.Facebook)
     case register(Stremio_Core_Types_AuthRequest.Register)
 
     fileprivate var isInitialized: Bool {
@@ -69,6 +78,10 @@ public struct Stremio_Core_Types_AuthRequest {
       }()
       case .loginWithToken: return {
         guard case .loginWithToken(let v) = self else { preconditionFailure() }
+        return v.isInitialized
+      }()
+      case .facebook: return {
+        guard case .facebook(let v) = self else { preconditionFailure() }
         return v.isInitialized
       }()
       case .register: return {
@@ -90,6 +103,10 @@ public struct Stremio_Core_Types_AuthRequest {
       }()
       case (.loginWithToken, .loginWithToken): return {
         guard case .loginWithToken(let l) = lhs, case .loginWithToken(let r) = rhs else { preconditionFailure() }
+        return l == r
+      }()
+      case (.facebook, .facebook): return {
+        guard case .facebook(let l) = lhs, case .facebook(let r) = rhs else { preconditionFailure() }
         return l == r
       }()
       case (.register, .register): return {
@@ -164,6 +181,27 @@ public struct Stremio_Core_Types_AuthRequest {
     fileprivate var _token: String? = nil
   }
 
+  public struct Facebook {
+    // SwiftProtobuf.Message conformance is added in an extension below. See the
+    // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+    // methods supported on all messages.
+
+    public var token: String {
+      get {return _token ?? String()}
+      set {_token = newValue}
+    }
+    /// Returns true if `token` has been explicitly set.
+    public var hasToken: Bool {return self._token != nil}
+    /// Clears the value of `token`. Subsequent reads from it will return its default value.
+    public mutating func clearToken() {self._token = nil}
+
+    public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+    public init() {}
+
+    fileprivate var _token: String? = nil
+  }
+
   public struct Register {
     // SwiftProtobuf.Message conformance is added in an extension below. See the
     // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
@@ -213,6 +251,7 @@ extension Stremio_Core_Types_AuthRequest: @unchecked Sendable {}
 extension Stremio_Core_Types_AuthRequest.OneOf_Type: @unchecked Sendable {}
 extension Stremio_Core_Types_AuthRequest.Login: @unchecked Sendable {}
 extension Stremio_Core_Types_AuthRequest.LoginWithToken: @unchecked Sendable {}
+extension Stremio_Core_Types_AuthRequest.Facebook: @unchecked Sendable {}
 extension Stremio_Core_Types_AuthRequest.Register: @unchecked Sendable {}
 #endif  // swift(>=5.5) && canImport(_Concurrency)
 
@@ -225,7 +264,8 @@ extension Stremio_Core_Types_AuthRequest: SwiftProtobuf.Message, SwiftProtobuf._
   public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
     1: .same(proto: "login"),
     2: .standard(proto: "login_with_token"),
-    3: .same(proto: "register"),
+    3: .same(proto: "facebook"),
+    4: .same(proto: "register"),
   ]
 
   public var isInitialized: Bool {
@@ -266,6 +306,19 @@ extension Stremio_Core_Types_AuthRequest: SwiftProtobuf.Message, SwiftProtobuf._
         }
       }()
       case 3: try {
+        var v: Stremio_Core_Types_AuthRequest.Facebook?
+        var hadOneofValue = false
+        if let current = self.type {
+          hadOneofValue = true
+          if case .facebook(let m) = current {v = m}
+        }
+        try decoder.decodeSingularMessageField(value: &v)
+        if let v = v {
+          if hadOneofValue {try decoder.handleConflictingOneOf()}
+          self.type = .facebook(v)
+        }
+      }()
+      case 4: try {
         var v: Stremio_Core_Types_AuthRequest.Register?
         var hadOneofValue = false
         if let current = self.type {
@@ -297,9 +350,13 @@ extension Stremio_Core_Types_AuthRequest: SwiftProtobuf.Message, SwiftProtobuf._
       guard case .loginWithToken(let v)? = self.type else { preconditionFailure() }
       try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
     }()
+    case .facebook?: try {
+      guard case .facebook(let v)? = self.type else { preconditionFailure() }
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+    }()
     case .register?: try {
       guard case .register(let v)? = self.type else { preconditionFailure() }
-      try visitor.visitSingularMessageField(value: v, fieldNumber: 3)
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 4)
     }()
     case nil: break
     }
@@ -403,6 +460,47 @@ extension Stremio_Core_Types_AuthRequest.LoginWithToken: SwiftProtobuf.Message, 
   }
 
   public static func ==(lhs: Stremio_Core_Types_AuthRequest.LoginWithToken, rhs: Stremio_Core_Types_AuthRequest.LoginWithToken) -> Bool {
+    if lhs._token != rhs._token {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Stremio_Core_Types_AuthRequest.Facebook: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = Stremio_Core_Types_AuthRequest.protoMessageName + ".Facebook"
+  public static let _protobuf_nameMap: SwiftProtobuf._NameMap = [
+    1: .same(proto: "token"),
+  ]
+
+  public var isInitialized: Bool {
+    if self._token == nil {return false}
+    return true
+  }
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularStringField(value: &self._token) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    try { if let v = self._token {
+      try visitor.visitSingularStringField(value: v, fieldNumber: 1)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Stremio_Core_Types_AuthRequest.Facebook, rhs: Stremio_Core_Types_AuthRequest.Facebook) -> Bool {
     if lhs._token != rhs._token {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true

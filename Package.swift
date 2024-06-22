@@ -23,7 +23,7 @@ let package = Package(
                             "Wrapper",
                             .product(name: "SwiftProtobuf", package: "swift-protobuf")
                 ]),
-        .binaryTarget(name: "XCFramework", path: ".build/StremioCore.xcframework")
-        //.binaryTarget(name: "XCFramework", url: "https://github.com/Stremio/stremio-core-swift/releases/download/1.2.5/StremioCore.xcframework.zip", checksum: "03fe456f1fa79837e8f2982497da7d87068170bea1fcd9c6809e0131e56498a2")
+        //.binaryTarget(name: "XCFramework", path: ".build/StremioCore.xcframework")
+        .binaryTarget(name: "XCFramework", url: "https://github.com/Stremio/stremio-core-swift/releases/download/1.2.6/StremioCore.xcframework.zip", checksum: "4d67d26e84fcbe493ebe4894a3435562549cc53ac31ad9a26d89939914a95291")
     ]
 )
