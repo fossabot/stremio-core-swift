@@ -10,7 +10,7 @@ import SwiftProtobuf
 import os.log
 
 public class StremioApi {
-    private static let oslog = OSLog(subsystem: "com.stremio.core.StremioApi", category: "Wrapper")
+    internal static let oslog = OSLog(subsystem: "com.stremio.core.StremioApi", category: "Wrapper")
 
     public static func SetLoadRange(field: Stremio_Core_Runtime_Field?, start: UInt32, end: UInt32) {
         var action = Stremio_Core_Runtime_Action()
@@ -242,66 +242,35 @@ public class StremioApi {
     }
     
     public static func UninstallAddon(addonItem: Stremio_Core_Types_Descriptor, 
-                                      completionHandler: ((Stremio_Core_Runtime_Event.AddonUninstalled) -> Void )? = nil) {
+                                      completionHandler: ((Result<Stremio_Core_Runtime_Event.AddonUninstalled, Stremio_Core_Runtime_Event.Error> ) -> Void )? = nil) {
+        handleEvent(callbackType: CallbackType.addonUninstalled, completionHandler: completionHandler)
         var action = Stremio_Core_Runtime_Action()
         action.ctx.uninstallAddon = addonItem
         Core.dispatch(action: action)
-        if let completionHandler = completionHandler{
-            Core.addEventListener(type: StremioApi.CallbackType.addonUninstalled){ result in
-                if let result = result as? Stremio_Core_Runtime_Event.AddonUninstalled{
-                    completionHandler(result)
-                }
-                else {os_log(.fault, log: oslog, "Casting failed for addonUninstalled: %@", String(describing: result))}
-                Core.removeEventListener(type: StremioApi.CallbackType.addonUninstalled)
-            }
-        }
     }
     
     public static func InstallAddon(descriptor: Stremio_Core_Types_Descriptor,
-                                    completionHandler: ((Stremio_Core_Runtime_Event.AddonInstalled) -> Void)? = nil) {
+                                    completionHandler: ((Result<Stremio_Core_Runtime_Event.AddonInstalled, Stremio_Core_Runtime_Event.Error>) -> Void)? = nil) {
+        handleEvent(callbackType: CallbackType.addonInstalled, completionHandler: completionHandler)
         var action = Stremio_Core_Runtime_Action()
         action.ctx.installAddon = descriptor
         Core.dispatch(action: action)
-        
-        if let completionHandler = completionHandler {
-            Core.addEventListener(type: StremioApi.CallbackType.addonInstalled) { result in
-                if let result = result as? Stremio_Core_Runtime_Event.AddonInstalled {
-                    completionHandler(result)
-                } else {os_log(.fault, log: oslog, "Casting failed for addonInstalled: %@", String(describing: result))}
-                Core.removeEventListener(type: StremioApi.CallbackType.addonInstalled)
-            }
-        }
     }
     
     public static func UpgradeAddon(descriptor: Stremio_Core_Types_Descriptor,
-                                    completionHandler: ((Stremio_Core_Runtime_Event.AddonUpgraded) -> Void)? = nil) {
+                                    completionHandler: ((Result<Stremio_Core_Runtime_Event.AddonUpgraded, Stremio_Core_Runtime_Event.Error> ) -> Void)? = nil) {
+        handleEvent(callbackType: CallbackType.addonUpgraded, completionHandler: completionHandler)
         var action = Stremio_Core_Runtime_Action()
         action.ctx.upgradeAddon = descriptor
         Core.dispatch(action: action)
-        
-        if let completionHandler = completionHandler {
-            Core.addEventListener(type: StremioApi.CallbackType.addonUpgraded) { result in
-                if let result = result as? Stremio_Core_Runtime_Event.AddonUpgraded {
-                    completionHandler(result)
-                } else {os_log(.fault, log: oslog, "Casting failed for addonUpgraded: %@", String(describing: result))}
-                Core.removeEventListener(type: StremioApi.CallbackType.addonUpgraded)
-            }
-        }
     }
-
+    
     public static func UpdateSettings(settings: Stremio_Core_Types_Profile.Settings,
-                                    completionHandler: ((Stremio_Core_Runtime_Event.SettingsUpdated) -> Void)? = nil) {
+                                      completionHandler: ((Result<Stremio_Core_Runtime_Event.SettingsUpdated, Stremio_Core_Runtime_Event.Error>) -> Void)? = nil) {
+        handleEvent(callbackType: CallbackType.settingsUpdated, completionHandler: completionHandler)
         var action = Stremio_Core_Runtime_Action()
         action.ctx.updateSettings = settings
         Core.dispatch(action: action)
-        if let completionHandler = completionHandler {
-            Core.addEventListener(type: StremioApi.CallbackType.addonInstalled) { result in
-                if let result = result as? Stremio_Core_Runtime_Event.SettingsUpdated {
-                    completionHandler(result)
-                } else {os_log(.fault, log: oslog, "Casting failed for settingsUpdated: %@", String(describing: result))}
-                Core.removeEventListener(type: StremioApi.CallbackType.addonUpgraded)
-            }
-        }
     }
 
     //MARK: - Adding, removing Library
@@ -340,7 +309,9 @@ public class StremioApi {
         //TODO: Implimnet logining with token
     }
     
-    public static func Login(email: String, password: String) {
+    public static func Login(email: String, password: String,
+                             completionHandler: ((Result<Stremio_Core_Runtime_Event.UserAuthenticated, Stremio_Core_Runtime_Event.Error>) -> Void)? = nil) {
+        handleEvent(callbackType: CallbackType.userAuthenticated, completionHandler: completionHandler)
         var action = Stremio_Core_Runtime_Action()
         action.ctx.authenticate.login.email = email
         action.ctx.authenticate.login.password = password

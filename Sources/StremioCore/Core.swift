@@ -18,17 +18,17 @@ import UIKit
 public class Core {
     //MARK: - callback
     private static let oslog = OSLog(subsystem: "com.stremio.core.Swift", category: "Wrapper")
-
     private static var fieldListener : [Stremio_Core_Runtime_Field : (Any) -> Void] = [:]
-    private static var eventListener : [Int : (Any) -> Void] = [:]
+    private static var eventListener : [Int : (Stremio_Core_Runtime_Event) -> Void] = [:]
+    public static var coreEventListener : ((Stremio_Core_Runtime_Event) -> Void)?
 
     ///Make sure to remove listener before function gets deallocated to avoid undefined behaviour
     public static func addEventListener(type: Stremio_Core_Runtime_Field, _ function: @escaping (Any) -> Void) {
         Core.fieldListener[type] = function
     }
 
-    ///Make sure to remove listener before function gets deallocated to avoid undefined behaviour
-    public static func addEventListener(type: Int, _ function: @escaping (Any) -> Void) {
+    ///Make sure to remove listener before function gets deallocated to avoid undefined behaviour.
+    internal static func addEventListener(type: Int, _ function: @escaping (Stremio_Core_Runtime_Event) -> Void) {
         Core.eventListener[type] = function
     }
 
@@ -36,26 +36,31 @@ public class Core {
         Core.fieldListener.removeValue(forKey: type)
     }
 
-    public static func removeEventListener(type: Int) {
+    internal static func removeEventListener(type: Int) {
         Core.eventListener.removeValue(forKey: type)
     }
     @objc internal static func onRuntimeEvent(_ eventData: NSData){
         do {
             let event = try Stremio_Core_Runtime_RuntimeEvent(serializedData: eventData as Data)
-            var function : ((Any) -> Void)?
-            var argument : Any?
             os_log(.debug, log: oslog, "%@", event.debugDescription)
             if case .coreEvent(_:) = event.event{
-                if let function = Core.eventListener.first(where: {event.coreEvent.getMessageTag == $0.key})?.value {
-                    DispatchQueue.main.asyncAndWait {
-                        function(event.coreEvent)
+                let function = {
+                    if case .error(_:) = event.coreEvent.type{
+                        return Core.eventListener.first(where: {event.coreEvent.error.source.getMessageTag == $0.key})?.value
                     }
+                    return Core.eventListener.first(where: {event.coreEvent.getMessageTag == $0.key})?.value
+                }()
+                
+                coreEventListener?(event.coreEvent)
+                if function == nil {return}
+                DispatchQueue.main.async {
+                    function?(event.coreEvent)
                 }
             }
             else {
                 for field in event.newState.fields{
                     if let function = Core.fieldListener[field] {
-                        DispatchQueue.main.asyncAndWait {
+                        DispatchQueue.main.async {
                             function(field)
                         }
                     }
