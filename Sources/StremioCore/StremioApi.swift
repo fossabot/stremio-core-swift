@@ -26,10 +26,10 @@ public class StremioApi {
     }
     
     //MARK: - set filters
-    public static func SetCatalogFilter(field: Stremio_Core_Runtime_Field?, filter: Stremio_Core_Models_CatalogWithFilters.SelectableType){
+    public static func LoadDiscoverCatalog(_ request: Stremio_Core_Types_ResourceRequest){
         var action = Stremio_Core_Runtime_Action()
-        action.load.catalogWithFilters.request = filter.request
-        Core.dispatch(action: action, field: field)
+        action.load.catalogWithFilters.request = request
+        Core.dispatch(action: action, field: .discover)
     }
     
     public static func SetAddonsFilter(field: Stremio_Core_Runtime_Field?, filter: Stremio_Core_Models_AddonsWithFilters.SelectableType){
@@ -61,6 +61,12 @@ public class StremioApi {
         return nil
     }
     
+    public static func LoadNextDiscoverCatalogPage() {
+        var action = Stremio_Core_Runtime_Action()
+        action.catalogWithFilters.loadNextPage = Google_Protobuf_Empty()
+        Core.dispatch(action: action, field: .discover)
+    }
+
     public static func LoadAddons() -> Stremio_Core_Models_AddonsWithFilters? {
         if let myMessage: Stremio_Core_Models_AddonsWithFilters = Core.getState(.addons) {
            return myMessage
@@ -130,12 +136,6 @@ public class StremioApi {
            return myMessage
         }
         return nil
-    }
-    
-    public static func SyncAll() {
-        SyncAddons()
-        SyncLibray()
-        PullUser()
     }
     
     public static func SyncAddons() {
@@ -241,11 +241,11 @@ public class StremioApi {
         Core.dispatch(action: action, field: .addonDetails)
     }
     
-    public static func UninstallAddon(addonItem: Stremio_Core_Types_Descriptor, 
+    public static func UninstallAddon(descriptor: Stremio_Core_Types_Descriptor, 
                                       completionHandler: ((Result<Stremio_Core_Runtime_Event.AddonUninstalled, Stremio_Core_Runtime_Event.Error> ) -> Void )? = nil) {
         handleEvent(callbackType: CallbackType.addonUninstalled, completionHandler: completionHandler)
         var action = Stremio_Core_Runtime_Action()
-        action.ctx.uninstallAddon = addonItem
+        action.ctx.uninstallAddon = descriptor
         Core.dispatch(action: action)
     }
     
