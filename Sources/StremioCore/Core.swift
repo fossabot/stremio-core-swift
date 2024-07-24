@@ -22,12 +22,11 @@ public class Core {
     private static var eventListener : [Int : (Stremio_Core_Runtime_Event) -> Void] = [:]
     public static var coreEventListener : ((Stremio_Core_Runtime_Event) -> Void)?
 
-    ///Make sure to remove listener before function gets deallocated to avoid undefined behaviour
+    ///Make sure to remove listener before function gets deallocated to avoid undefined behaviour. Handle UI tasks in Main thread
     public static func addEventListener(type: Stremio_Core_Runtime_Field, _ function: @escaping (Any) -> Void) {
         Core.fieldListener[type] = function
     }
-
-    ///Make sure to remove listener before function gets deallocated to avoid undefined behaviour.
+    ///Make sure to remove listener before function gets deallocated to avoid undefined behaviour. Handle UI tasks in Main thread
     internal static func addEventListener(type: Int, _ function: @escaping (Stremio_Core_Runtime_Event) -> Void) {
         Core.eventListener[type] = function
     }
@@ -53,16 +52,12 @@ public class Core {
                 
                 coreEventListener?(event.coreEvent)
                 if function == nil {return}
-                DispatchQueue.main.async {
-                    function?(event.coreEvent)
-                }
+                function?(event.coreEvent)
             }
             else {
                 for field in event.newState.fields{
                     if let function = Core.fieldListener[field] {
-                        DispatchQueue.main.async {
-                            function(field)
-                        }
+                        function(field)
                     }
                 }
             }
