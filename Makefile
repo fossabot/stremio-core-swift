@@ -28,6 +28,12 @@ iossim:
 		target/aarch64-apple-ios-sim/release/$(LIBRARY_NAME).a \
 		target/x86_64-apple-ios/release/$(LIBRARY_NAME).a
 
+visionossim:
+	@cargo +nightly build -Z build-std --release --lib --target aarch64-apple-visionos-sim
+	@$(RM) -rf target/universal/$(LIBRARY_NAME)-visionos-sim.a
+	@mkdir -p target/universal/
+	@cp target/aarch64-apple-visionos-sim/release/$(LIBRARY_NAME).a target/universal/$(LIBRARY_NAME)-visionos-sim.a
+
 framework:
 	@mkdir -p .build/
 	@$(RM) -rf .build/$(FRAMEWORK_NAME).xcframework
@@ -35,6 +41,7 @@ framework:
 		-library target/universal/$(LIBRARY_NAME)-ios.a \
 		-library target/universal/$(LIBRARY_NAME)-ios-sim.a \
 		-library target/universal/$(LIBRARY_NAME)-macabi.a \
+		-library target/universal/$(LIBRARY_NAME)-visionos-sim.a \
 		-output .build/$(FRAMEWORK_NAME).xcframework
 
 package: framework
