@@ -32,12 +32,11 @@ public class StremioApi {
         Core.dispatch(action: action, field: .discover)
     }
     
-    public static func SetAddonsFilter(field: Stremio_Core_Runtime_Field?, filter: Stremio_Core_Models_AddonsWithFilters.SelectableType){
+    public static func LoadAddons(_ request: Stremio_Core_Types_ResourceRequest){
         var action = Stremio_Core_Runtime_Action()
-        action.load.addonsWithFilters.request = filter.request
-        Core.dispatch(action: action, field: field)
+        action.load.addonsWithFilters.request = request
+        Core.dispatch(action: action, field: .addons)
     }
-    
     
     //MARK: - load states
     public static func LoadBoard() -> Stremio_Core_Models_CatalogsWithExtra? {
@@ -74,11 +73,23 @@ public class StremioApi {
         return nil
     }
     
-    public static func LoadAddonDetails() -> Stremio_Core_Models_AddonDetails? {
-        if let myMessage: Stremio_Core_Models_AddonDetails = Core.getState(.addonDetails) {
-           return myMessage
-        }
-        return nil
+    public static func AddonDetails(transportURL: String,
+                                    completionHandler: @escaping ((Stremio_Core_Models_AddonDetails) -> Void)) {
+        Core.addEventListener(type: .addonDetails, { _ in
+            if let myMessage: Stremio_Core_Models_AddonDetails = Core.getState(.addonDetails) {
+                completionHandler(myMessage)
+                if case .loading(_:) = myMessage.remoteAddon.content{}
+                else {
+                    Core.removeEventListener(type: .addonDetails)
+                    StremioApi.Unload(field: .addonDetails)
+                }
+            }
+            else {
+                Core.removeEventListener(type: .addonDetails)
+                StremioApi.Unload(field: .addonDetails)
+            }
+        })
+        StremioApi.AddonItemLoad(transportURL: transportURL)
     }
 
     public static func LoadCtx() -> Stremio_Core_Models_Ctx? {
