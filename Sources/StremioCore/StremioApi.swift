@@ -26,6 +26,12 @@ public class StremioApi {
     }
     
     //MARK: - set filters
+    public static func LoadLibraryWithFilters(_ request:  Stremio_Core_Models_LibraryWithFilters.LibraryRequest){
+        var action = Stremio_Core_Runtime_Action()
+        action.load.libraryWithFilters.request = request
+        Core.dispatch(action: action, field: .library)
+    }
+
     public static func LoadDiscoverCatalog(_ request: Stremio_Core_Types_ResourceRequest){
         var action = Stremio_Core_Runtime_Action()
         action.load.catalogWithFilters.request = request
@@ -55,6 +61,13 @@ public class StremioApi {
     
     public static func LoadDiscover() -> Stremio_Core_Models_CatalogWithFilters? {
         if let myMessage: Stremio_Core_Models_CatalogWithFilters = Core.getState(.discover) {
+           return myMessage
+        }
+        return nil
+    }
+    
+    public static func LoadLibrary() -> Stremio_Core_Models_LibraryWithFilters? {
+        if let myMessage: Stremio_Core_Models_LibraryWithFilters = Core.getState(.library) {
            return myMessage
         }
         return nil
