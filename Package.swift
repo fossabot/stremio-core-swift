@@ -1,5 +1,7 @@
 // swift-tools-version: 5.9
 // The swift-tools-version declares the minimum version of Swift required to build this package.
+let sha256 = "";
+let url = "";
 
 import PackageDescription
 
@@ -8,7 +10,8 @@ let package = Package(
     platforms: [
         .macCatalyst(.v13),
         .iOS(.v12),
-        .visionOS(.v1)
+        .visionOS(.v1),
+        .tvOS(.v12)
     ],
     products: [
         .library(
@@ -24,7 +27,7 @@ let package = Package(
                             "Wrapper",
                             .product(name: "SwiftProtobuf", package: "swift-protobuf")
                 ]),
-//        .binaryTarget(name: "XCFramework", path: ".build/StremioCore.xcframework")
-        .binaryTarget(name: "XCFramework", url: "https://github.com/Stremio/stremio-core-swift/releases/download/1.2.61/StremioCore.xcframework.zip", checksum: "c6212fd5e111080ffb4ea2e1501b0a09b2c5e780b3ff63de86ac8184a75674c5")
+        .binaryTarget(name: "XCFramework", path: ".build/StremioCore.xcframework")
+        //.binaryTarget(name: "XCFramework", url: url, checksum: sha256)
     ]
 )

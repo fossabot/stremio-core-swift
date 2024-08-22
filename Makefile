@@ -2,7 +2,7 @@ LIBRARY_NAME := libstremio_core_swift
 FRAMEWORK_NAME := StremioCore
 .PHONY: all
 
-all: macos ios iossim package
+all: macos ios iossim tvossim tvos visionossim package
 
 macos:
 	@cargo +nightly build -Z build-std --release --lib --target aarch64-apple-ios-macabi
@@ -28,6 +28,18 @@ iossim:
 		target/aarch64-apple-ios-sim/release/$(LIBRARY_NAME).a \
 		target/x86_64-apple-ios/release/$(LIBRARY_NAME).a
 
+tvossim:
+	@cargo build -Z build-std --release --lib --target aarch64-apple-tvos-sim
+	@$(RM) -rf target/universal/$(LIBRARY_NAME)-tvos-sim.a
+	@mkdir -p target/universal/
+	@cp target/aarch64-apple-tvos-sim/release/$(LIBRARY_NAME).a target/universal/$(LIBRARY_NAME)-tvos-sim.a
+
+tvos:
+	@cargo build -Z build-std --release --lib --target aarch64-apple-tvos
+	@$(RM) -rf target/universal/$(LIBRARY_NAME)-tvos.a
+	@mkdir -p target/universal/
+	@cp target/aarch64-apple-tvos/release/$(LIBRARY_NAME).a target/universal/$(LIBRARY_NAME)-tvos.a
+
 visionossim:
 	@cargo +nightly build -Z build-std --release --lib --target aarch64-apple-visionos-sim
 	@$(RM) -rf target/universal/$(LIBRARY_NAME)-visionos-sim.a
@@ -42,6 +54,8 @@ framework:
 		-library target/universal/$(LIBRARY_NAME)-ios-sim.a \
 		-library target/universal/$(LIBRARY_NAME)-macabi.a \
 		-library target/universal/$(LIBRARY_NAME)-visionos-sim.a \
+		-library target/universal/$(LIBRARY_NAME)-tvos-sim.a \
+		-library target/universal/$(LIBRARY_NAME)-tvos.a \
 		-output .build/$(FRAMEWORK_NAME).xcframework
 
 package: framework
