@@ -28,6 +28,7 @@ To compile the Rust binary on your macOS machine, follow these steps:
 
 
 3. **Define the XCFramework in `Package.swift`:**
+
    Uncomment the local binary target in the Package.swift file:
 
    ```swift
@@ -36,4 +37,5 @@ To compile the Rust binary on your macOS machine, follow these steps:
    ```
 
 4. **Add the Local Package in Xcode:**
+
    Finally, add the package as a local package in Xcode.
