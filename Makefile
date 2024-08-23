@@ -60,4 +60,4 @@ framework:
 
 package: framework
 	@$(RM) -rf Sources/StremioCore/stremio
-	@./buildBridge.command
+	@cbindgen --config Support/cbindgen.toml -o Sources/Wrapper/include/wrapper.h
