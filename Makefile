@@ -1,5 +1,6 @@
 LIBRARY_NAME := libstremio_core_swift
 FRAMEWORK_NAME := StremioCore
+SWIFT_FILE := Package.swift
 .PHONY: all
 
 all: macos ios iossim tvossim tvos visionossim package
@@ -30,9 +31,12 @@ iossim:
 
 tvossim:
 	@cargo build -Z build-std --release --lib --target aarch64-apple-tvos-sim
+	@cargo build -Z build-std --release --lib --target x86_64-apple-tvos
 	@$(RM) -rf target/universal/$(LIBRARY_NAME)-tvos-sim.a
 	@mkdir -p target/universal/
-	@cp target/aarch64-apple-tvos-sim/release/$(LIBRARY_NAME).a target/universal/$(LIBRARY_NAME)-tvos-sim.a
+	@lipo -create -output target/universal/$(LIBRARY_NAME)-tvos-sim.a \
+		target/aarch64-apple-tvos-sim/release/$(LIBRARY_NAME).a \
+		target/x86_64-apple-tvos/release/$(LIBRARY_NAME).a
 
 tvos:
 	@cargo build -Z build-std --release --lib --target aarch64-apple-tvos
@@ -61,3 +65,9 @@ framework:
 package: framework
 	@$(RM) -rf Sources/StremioCore/stremio
 	@cbindgen --config Support/cbindgen.toml -o Sources/Wrapper/include/wrapper.h
+
+manifest:
+	@echo "Updating URL and SHA256 in $(SWIFT_FILE)..."
+	@sed -i '' 's|let url = .*|let url = "$(url)";|' $(SWIFT_FILE)
+	@sed -i '' 's|let sha256 = .*|let sha256 = "$(sha256)";|' $(SWIFT_FILE)
+	@echo "Done."
