@@ -1,4 +1,6 @@
 # Stremio-core-swift
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FAremixdj%2Fstremio-core-swift.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FAremixdj%2Fstremio-core-swift?ref=badge_shield)
+
 
 `stremio-core-swift` is a wrapper for Apple operating systems, based on `stremio-core-kotlin`. Any changes that are not specific to Apple should be contributed to `stremio-core-kotlin`.
 
@@ -39,3 +41,7 @@ To compile the Rust binary on your macOS machine, follow these steps:
 4. **Add the Local Package in Xcode:**
 
    Finally, add the package as a local package in Xcode.
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FAremixdj%2Fstremio-core-swift.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FAremixdj%2Fstremio-core-swift?ref=badge_large)
